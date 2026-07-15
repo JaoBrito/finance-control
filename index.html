@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeuControle - Controle Financeiro Inteligente</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- CSS Link -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">✨</span>
+                    <h2>MeuControle</h2>
+                </div>
+            </div>
+            <nav class="sidebar-menu">
+                <button class="nav-item active" data-tab="dashboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-tab="cards">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                    <span>Cartões & Compras</span>
+                </button>
+                <button class="nav-item" data-tab="p2p">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span>Acordos P2P</span>
+                    <span class="badge-count" id="pending-p2p-badge">0</span>
+                </button>
+                <button class="nav-item" data-tab="financas">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <span>Planejamento</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="quick-balance">
+                    <span class="label">Restante no Mês</span>
+                    <h3 id="sidebar-net-balance">R$ 0,00</h3>
+                    <div class="balance-bar">
+                        <div class="balance-bar-fill" id="sidebar-balance-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <!-- Month Navigator -->
+                <div class="month-selector-container">
+                    <button class="arrow-btn" id="prev-month-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <div class="month-carousel" id="month-carousel">
+                        <!-- Filled dynamically by JS -->
+                    </div>
+                    <button class="arrow-btn" id="next-month-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+
+                <!-- Utilities -->
+                <div class="utilities">
+                    <button class="btn btn-outline" id="export-btn" title="Exportar Dados (Backup JSON)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <span>Exportar</span>
+                    </button>
+                    <button class="btn btn-outline" id="import-btn" title="Importar Dados (Restaurar JSON)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <span>Importar</span>
+                    </button>
+                    <input type="file" id="file-import-input" accept=".json" style="display: none;">
+                    <button class="btn btn-outline" id="reset-btn" title="Restaurar dados das imagens">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                        <span>Reset</span>
+                    </button>
+                    <button class="theme-toggle" id="theme-toggle-btn" title="Alternar Tema">
+                        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Tab Content Sections -->
+            <div class="tab-contents">
+                
+                <!-- 1. DASHBOARD -->
+                <section class="tab-panel active" id="tab-dashboard">
+                    <!-- KPI Cards Grid -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card income">
+                            <div class="kpi-icon">💸</div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Receita Estimada</span>
+                                <h3 id="kpi-income">R$ 0,00</h3>
+                                <span class="kpi-subtext" id="kpi-income-sub">Salário + Extras</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card expenses">
+                            <div class="kpi-icon">📉</div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Despesas Totais</span>
+                                <h3 id="kpi-expenses">R$ 0,00</h3>
+                                <span class="kpi-subtext" id="kpi-expenses-sub">Fixo + Variável</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card cards">
+                            <div class="kpi-icon">💳</div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Cartão de Crédito</span>
+                                <h3 id="kpi-cards">R$ 0,00</h3>
+                                <span class="kpi-subtext" id="kpi-cards-sub">Fatura Itaú + Nubank</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card balance-card">
+                            <div class="kpi-icon">💰</div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Restante Livre</span>
+                                <h3 id="kpi-balance">R$ 0,00</h3>
+                                <span class="kpi-subtext" id="kpi-balance-sub">Líquido no mês</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Area -->
+                    <div class="charts-row">
+                        <div class="chart-container main-chart">
+                            <div class="chart-header">
+                                <h3>Fluxo de Caixa (Mensal)</h3>
+                                <span class="subtitle">Visão geral de Receita vs Gastos</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="flowChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-container category-chart">
+                            <div class="chart-header">
+                                <h3>Divisão de Gastos</h3>
+                                <span class="subtitle">Mês selecionado</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Savings Target Tracker -->
+                    <div class="savings-tracker-row">
+                        <div class="savings-card" id="savings-card-life">
+                            <!-- Corner Comment Indicator (Google Sheets Style) -->
+                            <div class="comment-indicator" data-savings-id="life" title="Ver comentários"></div>
+                            
+                            <div class="savings-header">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <h4>Poupança de Vida</h4>
+                                        <button class="comment-trigger-btn" data-savings-id="life" title="Ver comentários">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                            <span class="comment-count-badge" id="life-comment-count" style="display: none;">0</span>
+                                        </button>
+                                    </div>
+                                    <span class="subtitle">Reserva financeira estratégica</span>
+                                </div>
+                                <span class="target-val" id="savings-life-value">R$ 0,00</span>
+                            </div>
+                            <div class="savings-progress-bar">
+                                <div class="savings-progress-fill life-fill" style="width: 70%"></div>
+                            </div>
+                            <div class="savings-meta">
+                                <span>R$ 0,00 guardados no mês</span>
+                                <span class="percent-label">Meta Flexível</span>
+                            </div>
+
+                            <!-- Floating Comment Popover -->
+                            <div class="savings-comment-popover" id="popover-savings-life" style="display: none;">
+                                <div class="popover-header">
+                                    <span class="popover-title">Comentários - Vida</span>
+                                    <button class="close-popover-btn" data-savings-id="life" title="Fechar">&times;</button>
+                                </div>
+                                <div class="comments-list" id="comments-list-life">
+                                    <!-- Dinamicamente renderizado -->
+                                </div>
+                                <div class="popover-author-info">
+                                    <span>Como: <strong class="comment-author-name" id="author-name-display-life">Você</strong></span>
+                                    <button class="btn-change-author" data-savings-id="life">Editar</button>
+                                </div>
+                                <form class="comment-form" data-savings-id="life">
+                                    <input type="text" placeholder="Escreva um comentário..." class="comment-input" required autocomplete="off">
+                                    <button type="submit" class="btn-send-comment" title="Enviar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="savings-card" id="savings-card-travel">
+                            <!-- Corner Comment Indicator (Google Sheets Style) -->
+                            <div class="comment-indicator" data-savings-id="travel" title="Ver comentários"></div>
+                            
+                            <div class="savings-header">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <h4>Poupança de Viagem</h4>
+                                        <button class="comment-trigger-btn" data-savings-id="travel" title="Ver comentários">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                            <span class="comment-count-badge" id="travel-comment-count" style="display: none;">0</span>
+                                        </button>
+                                    </div>
+                                    <span class="subtitle">Fundo para novas experiências</span>
+                                </div>
+                                <span class="target-val" id="savings-travel-value">R$ 0,00</span>
+                            </div>
+                            <div class="savings-progress-bar">
+                                <div class="savings-progress-fill travel-fill" style="width: 50%"></div>
+                            </div>
+                            <div class="savings-meta">
+                                <span>R$ 0,00 guardados no mês</span>
+                                <span class="percent-label">Meta Viagem</span>
+                            </div>
+
+                            <!-- Floating Comment Popover -->
+                            <div class="savings-comment-popover" id="popover-savings-travel" style="display: none;">
+                                <div class="popover-header">
+                                    <span class="popover-title">Comentários - Viagem</span>
+                                    <button class="close-popover-btn" data-savings-id="travel" title="Fechar">&times;</button>
+                                </div>
+                                <div class="comments-list" id="comments-list-travel">
+                                    <!-- Dinamicamente renderizado -->
+                                </div>
+                                <div class="popover-author-info">
+                                    <span>Como: <strong class="comment-author-name" id="author-name-display-travel">Você</strong></span>
+                                    <button class="btn-change-author" data-savings-id="travel">Editar</button>
+                                </div>
+                                <form class="comment-form" data-savings-id="travel">
+                                    <input type="text" placeholder="Escreva um comentário..." class="comment-input" required autocomplete="off">
+                                    <button type="submit" class="btn-send-comment" title="Enviar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. CARTÕES E COMPRAS -->
+                <section class="tab-panel" id="tab-cards">
+                    <!-- Cards Display Row -->
+                    <div class="cards-display-grid">
+                        <!-- Card 1: Itaú -->
+                        <div class="credit-card-glow itau-card">
+                            <div class="card-chip"></div>
+                            <div class="card-brand">Itaú</div>
+                            <div class="card-number">•••• •••• •••• 1924</div>
+                            <div class="card-info-row">
+                                <div class="card-info-col">
+                                    <span class="card-info-label">FATURA ATUAL</span>
+                                    <h4 class="card-info-value" id="itau-card-bill">R$ 0,00</h4>
+                                </div>
+                                <div class="card-info-col text-right">
+                                    <span class="card-info-label">VENCIMENTO</span>
+                                    <span class="card-info-value">Dia 10</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Nubank -->
+                        <div class="credit-card-glow nubank-card">
+                            <div class="card-chip"></div>
+                            <div class="card-brand">Nubank</div>
+                            <div class="card-number">•••• •••• •••• 8295</div>
+                            <div class="card-info-row">
+                                <div class="card-info-col">
+                                    <span class="card-info-label">FATURA ATUAL</span>
+                                    <h4 class="card-info-value" id="nubank-card-bill">R$ 0,00</h4>
+                                </div>
+                                <div class="card-info-col text-right">
+                                    <span class="card-info-label">VENCIMENTO</span>
+                                    <span class="card-info-value">Dia 15</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Split Container for Installments and Recurrent purchases -->
+                    <div class="purchases-split">
+                        <!-- Active Installments -->
+                        <div class="purchases-list-container">
+                            <div class="list-header">
+                                <div>
+                                    <h3>Compras Parceladas Ativas</h3>
+                                    <p class="subtitle">Transações com parcelas caindo no mês selecionado</p>
+                                </div>
+                                <button class="btn btn-primary" id="add-purchase-btn">
+                                    <span>+ Nova Compra</span>
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="custom-table" id="installments-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Compra</th>
+                                            <th>Categoria</th>
+                                            <th>Cartão</th>
+                                            <th>Parcela</th>
+                                            <th>Valor Total</th>
+                                            <th>Valor Parcela</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Recurring Purchases -->
+                        <div class="recurrent-list-container">
+                            <div class="list-header">
+                                <div>
+                                    <h3>Assinaturas & Recorrentes</h3>
+                                    <p class="subtitle">Faturadas todo mês no cartão</p>
+                                </div>
+                                <button class="btn btn-outline btn-sm" id="add-recurring-btn">
+                                    <span>+ Nova</span>
+                                </button>
+                            </div>
+                            <div class="recurrent-grid" id="recurrent-purchases-container">
+                                <!-- Rendered dynamically -->
+                            </div>
+                            <div class="recurrent-total">
+                                <span>Total Assinaturas:</span>
+                                <strong id="recurrent-total-val">R$ 0,00</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. ACORDOS P2P (RECEBO / PAGO) -->
+                <section class="tab-panel" id="tab-p2p">
+                    <div class="p2p-header-section">
+                        <div>
+                            <h2>Acordos Financeiros Parcelados</h2>
+                            <p class="subtitle">Gerencie o recebimento ou pagamento de parcelas externas de amigos, shows, aluguéis ou vendas.</p>
+                        </div>
+                        <button class="btn btn-primary" id="add-agreement-btn">
+                            <span>+ Novo Acordo</span>
+                        </button>
+                    </div>
+
+                    <!-- Tabs Inside P2P -->
+                    <div class="p2p-inner-tabs">
+                        <button class="p2p-tab-btn active" data-p2p-type="receber">Recebimentos (Recebo)</button>
+                        <button class="p2p-tab-btn" data-p2p-type="pagar">Pagamentos (Pago)</button>
+                    </div>
+
+                    <!-- Cards Deck -->
+                    <div class="p2p-deck" id="p2p-deck-container">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 4. PLANEJAMENTO MENSAL (FINANÇAS) -->
+                <section class="tab-panel" id="tab-financas">
+                    <div class="planning-header-row">
+                        <div>
+                            <h2>Orçamento Detalhado</h2>
+                            <p class="subtitle">Planejamento e controle de despesas e receitas fixas/variáveis. Clique duas vezes em um valor para editar!</p>
+                        </div>
+                        <div class="planning-actions">
+                            <button class="btn btn-outline" id="add-planning-row-btn">+ Nova Categoria</button>
+                        </div>
+                    </div>
+
+                    <div class="planning-grid-container">
+                        <!-- Gastos Fixos Table -->
+                        <div class="planning-section-card">
+                            <div class="section-title-bar income-gradient">
+                                <h3>Receitas do Mês</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="planning-table" id="planning-income-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th class="text-right">Valor</th>
+                                            <th class="text-center" width="80">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Gastos Fixos Table -->
+                        <div class="planning-section-card">
+                            <div class="section-title-bar fixed-gradient">
+                                <h3>Gastos Fixos</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="planning-table" id="planning-fixed-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th class="text-right">Valor</th>
+                                            <th class="text-center" width="80">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Gastos Variáveis Table -->
+                        <div class="planning-section-card">
+                            <div class="section-title-bar variable-gradient">
+                                <h3>Gastos Variáveis</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="planning-table" id="planning-variable-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th class="text-right">Valor</th>
+                                            <th class="text-center" width="80">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary Row at the bottom of planner -->
+                    <div class="planner-footer-summary">
+                        <div class="summary-metric">
+                            <span class="label">Receita</span>
+                            <span class="value val-income" id="planner-income-sum">R$ 0,00</span>
+                        </div>
+                        <div class="summary-metric">
+                            <span class="label">Total Despesas</span>
+                            <span class="value val-expense" id="planner-expense-sum">R$ 0,00</span>
+                        </div>
+                        <div class="summary-metric">
+                            <span class="label">Saldo Líquido</span>
+                            <span class="value val-net" id="planner-net-sum">R$ 0,00</span>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: ADD COMPRA PARCELADA -->
+    <div class="modal-backdrop" id="modal-purchase">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Nova Compra Parcelada</h3>
+                <button class="close-modal-btn" data-modal="modal-purchase">&times;</button>
+            </div>
+            <form id="purchase-form">
+                <div class="form-group">
+                    <label for="p-description">Descrição da Compra</label>
+                    <input type="text" id="p-description" required placeholder="Ex: Tênis Adidas">
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="p-date">Data da Compra</label>
+                        <input type="date" id="p-date" required>
+                    </div>
+                    <div class="form-group col">
+                        <label for="p-card">Cartão</label>
+                        <select id="p-card" required>
+                            <option value="Itaú">Itaú</option>
+                            <option value="Nubank">Nubank</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="p-total">Valor Total</label>
+                        <div class="currency-input-wrapper">
+                            <span class="currency-symbol">R$</span>
+                            <input type="number" id="p-total" step="0.01" required placeholder="279.99">
+                        </div>
+                    </div>
+                    <div class="form-group col">
+                        <label for="p-installments">Parcelas (Ex: 4)</label>
+                        <input type="number" id="p-installments" min="1" max="60" required placeholder="4">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="p-category">Categoria</label>
+                    <select id="p-category" required>
+                        <option value="Roupa">Roupa</option>
+                        <option value="Presentes">Presentes</option>
+                        <option value="Extras">Extras</option>
+                        <option value="Casa">Casa</option>
+                        <option value="Tecnologia">Tecnologia</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Alimentação">Alimentação</option>
+                        <option value="Lazer">Lazer</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" data-modal="modal-purchase">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD ASSINATURA RECORRENTE -->
+    <div class="modal-backdrop" id="modal-recurring">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Nova Assinatura Recorrente</h3>
+                <button class="close-modal-btn" data-modal="modal-recurring">&times;</button>
+            </div>
+            <form id="recurring-form">
+                <div class="form-group">
+                    <label for="r-name">Nome da Assinatura</label>
+                    <input type="text" id="r-name" required placeholder="Ex: ChatGPT Plus">
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="r-value">Valor Mensal</label>
+                        <div class="currency-input-wrapper">
+                            <span class="currency-symbol">R$</span>
+                            <input type="number" id="r-value" step="0.01" required placeholder="42.45">
+                        </div>
+                    </div>
+                    <div class="form-group col">
+                        <label for="r-day">Dia do Vencimento</label>
+                        <input type="number" id="r-day" min="1" max="31" required placeholder="30">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="r-card">Cartão de Cobrança</label>
+                        <select id="r-card" required>
+                            <option value="Itaú">Itaú</option>
+                            <option value="Nubank">Nubank</option>
+                            <option value="Nenhum (Débito/PIX)">Nenhum (Débito/PIX)</option>
+                        </select>
+                    </div>
+                    <div class="form-group col">
+                        <label for="r-color">Cor Temática</label>
+                        <select id="r-color">
+                            <option value="#f59e0b">Laranja</option>
+                            <option value="#3b82f6">Azul</option>
+                            <option value="#8b5cf6">Roxo</option>
+                            <option value="#10b981">Verde</option>
+                            <option value="#ec4899">Rosa</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" data-modal="modal-recurring">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD ACORDO P2P -->
+    <div class="modal-backdrop" id="modal-agreement">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Novo Acordo Parcelado</h3>
+                <button class="close-modal-btn" data-modal="modal-agreement">&times;</button>
+            </div>
+            <form id="agreement-form">
+                <div class="form-group">
+                    <label for="a-name">Nome do Acordo (De quem / Para quem)</label>
+                    <input type="text" id="a-name" required placeholder="Ex: Show Laura, Venda Celular">
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="a-type">Tipo</label>
+                        <select id="a-type" required>
+                            <option value="receber">Recebimento (Eu recebo)</option>
+                            <option value="pagar">Pagamento (Eu pago)</option>
+                        </select>
+                    </div>
+                    <div class="form-group col">
+                        <label for="a-start">Mês de Início</label>
+                        <select id="a-start" required>
+                            <!-- Populated in JS dynamically with next 12 months -->
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="a-amount">Valor por Parcela</label>
+                        <div class="currency-input-wrapper">
+                            <span class="currency-symbol">R$</span>
+                            <input type="number" id="a-amount" step="0.01" required placeholder="217.50">
+                        </div>
+                    </div>
+                    <div class="form-group col">
+                        <label for="a-installments">Total de Meses/Parcelas</label>
+                        <input type="number" id="a-installments" min="1" max="36" required placeholder="4">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" data-modal="modal-agreement">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD PLANNING ROW -->
+    <div class="modal-backdrop" id="modal-planning-row">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Nova Linha no Planejamento</h3>
+                <button class="close-modal-btn" data-modal="modal-planning-row">&times;</button>
+            </div>
+            <form id="planning-row-form">
+                <div class="form-group">
+                    <label for="pl-type">Tipo de Lançamento</label>
+                    <select id="pl-type" required>
+                        <option value="fixed">Gasto Fixo</option>
+                        <option value="variable">Gasto Variável</option>
+                        <option value="income">Receita (Ganho Adicional)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="pl-description">Descrição</label>
+                    <input type="text" id="pl-description" required placeholder="Ex: Academia, Conta de Luz, Bônus">
+                </div>
+                <div class="form-group">
+                    <label for="pl-val">Valor Inicial</label>
+                    <div class="currency-input-wrapper">
+                        <span class="currency-symbol">R$</span>
+                        <input type="number" id="pl-val" step="0.01" required placeholder="80.00">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" data-modal="modal-planning-row">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script Link -->
+    <script src="app.js"></script>
+</body>
+</html>
