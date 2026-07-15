@@ -12,6 +12,13 @@ let activeP2PType = "receber"; // P2P view switcher
 let flowChartInstance = null;
 let categoryChartInstance = null;
 
+// Firebase persistence state. The app still works offline/local if Firebase is not configured yet.
+let firebasePersistence = {
+    enabled: false,
+    docRef: null,
+    saveTimer: null
+};
+
 // Default Mock Data based on spreadsheet screenshots
 const DEFAULT_MOCK_DATA = {
     months: ["2026-08", "2026-09", "2026-10", "2026-11", "2026-12", "2027-01"],
@@ -1166,30 +1173,130 @@ function refreshAllUI() {
     renderCharts();
 }
 
-// Save state to LocalStorage
+function getDefaultState() {
+    const defaultState = JSON.parse(JSON.stringify(DEFAULT_MOCK_DATA));
+    defaultState.comments = defaultState.comments || {};
+    return defaultState;
+}
+
+function normalizeState(nextState) {
+    if (!nextState || typeof nextState !== "object") {
+        return getDefaultState();
+    }
+
+    if (!nextState.months) nextState.months = DEFAULT_MOCK_DATA.months;
+    if (!nextState.purchases) nextState.purchases = [];
+    if (!nextState.subscriptions) nextState.subscriptions = [];
+    if (!nextState.p2pAgreements) nextState.p2pAgreements = [];
+    if (!nextState.planning) nextState.planning = {};
+    nextState.comments = nextState.comments || {};
+
+    return nextState;
+}
+
+function loadLocalState() {
+    const stored = localStorage.getItem("financeflow_state");
+    if (!stored) return getDefaultState();
+
+    try {
+        return normalizeState(JSON.parse(stored));
+    } catch (e) {
+        console.warn("Nao foi possivel ler os dados locais. Restaurando padrao.", e);
+        return getDefaultState();
+    }
+}
+
+function hasFirebaseConfig() {
+    const config = window.firebaseConfig;
+    return Boolean(
+        window.firebase &&
+        config &&
+        config.apiKey &&
+        !config.apiKey.includes("COLE_") &&
+        config.projectId &&
+        config.appId &&
+        !config.appId.includes("COLE_")
+    );
+}
+
+async function setupFirebasePersistence() {
+    if (!hasFirebaseConfig()) {
+        return false;
+    }
+
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(window.firebaseConfig);
+        }
+
+        const auth = firebase.auth();
+        const credential = await auth.signInAnonymously();
+        const user = credential.user || auth.currentUser;
+
+        firebasePersistence.docRef = firebase
+            .firestore()
+            .collection("users")
+            .doc(user.uid)
+            .collection("finance")
+            .doc("state");
+        firebasePersistence.enabled = true;
+
+        return true;
+    } catch (e) {
+        console.warn("Firebase indisponivel. Usando localStorage.", e);
+        firebasePersistence.enabled = false;
+        firebasePersistence.docRef = null;
+        return false;
+    }
+}
+
+async function loadPersistedState() {
+    const localState = loadLocalState();
+    const hasCloud = await setupFirebasePersistence();
+
+    if (!hasCloud) {
+        return localState;
+    }
+
+    try {
+        const snapshot = await firebasePersistence.docRef.get();
+        if (snapshot.exists && snapshot.data().state) {
+            const cloudState = normalizeState(snapshot.data().state);
+            localStorage.setItem("financeflow_state", JSON.stringify(cloudState));
+            return cloudState;
+        }
+
+        localStorage.setItem("financeflow_state", JSON.stringify(localState));
+        saveState();
+        return localState;
+    } catch (e) {
+        console.warn("Nao foi possivel carregar dados do Firestore. Usando localStorage.", e);
+        return localState;
+    }
+}
+
+// Save state locally and, when configured, sync it to Firestore.
 function saveState() {
     localStorage.setItem("financeflow_state", JSON.stringify(state));
+
+    if (!firebasePersistence.enabled || !firebasePersistence.docRef) {
+        return;
+    }
+
+    clearTimeout(firebasePersistence.saveTimer);
+    firebasePersistence.saveTimer = setTimeout(() => {
+        firebasePersistence.docRef.set({
+            state,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch((e) => {
+            console.warn("Nao foi possivel salvar no Firestore. Dados locais preservados.", e);
+        });
+    }, 400);
 }
 
 // Initialize Application state
-function init() {
-    const stored = localStorage.getItem("financeflow_state");
-    if (stored) {
-        try {
-            state = JSON.parse(stored);
-            // Ensure compatibility if new fields were added
-            if (!state.months) state.months = DEFAULT_MOCK_DATA.months;
-            state.comments = state.comments || {};
-        } catch (e) {
-            state = JSON.parse(JSON.stringify(DEFAULT_MOCK_DATA));
-            state.comments = {};
-        }
-    } else {
-        // Use default pre-loaded mock data
-        state = JSON.parse(JSON.stringify(DEFAULT_MOCK_DATA));
-        state.comments = {};
-        saveState();
-    }
+async function init() {
+    state = await loadPersistedState();
     
     // Populate agreement start month selectors in HTML modal
     populateStartMonthSelectors();
@@ -1501,7 +1608,13 @@ function setupUtilityListeners() {
 }
 
 // Start application when window loads
-window.addEventListener("DOMContentLoaded", init);
+window.addEventListener("DOMContentLoaded", () => {
+    init().catch((e) => {
+        console.error("Falha ao iniciar aplicacao.", e);
+        state = loadLocalState();
+        refreshAllUI();
+    });
+});
 
 // ==========================================
 // Savings Comments Engine (Google Sheets Style)
