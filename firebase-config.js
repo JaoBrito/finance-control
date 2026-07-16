@@ -1,6 +1,6 @@
 // Firebase config is public by design for web apps.
 // Fill these values from Firebase Console > Project settings > Your apps > Web app.
-const firebaseConfig = {
+window.firebaseConfig = {
   apiKey: "AIzaSyCeuNtRHe6SBJMo6BfcX6ZKGGxrlgCJqDs",
   authDomain: "meucontrole-namao.firebaseapp.com",
   projectId: "meucontrole-namao",

@@ -1131,6 +1131,45 @@ body {
 .table-badge.pink { background-color: rgba(236, 72, 153, 0.15); color: #f472b6; }
 .table-badge.default { background-color: var(--border-color); color: var(--text-secondary); }
 
+.table-badge.roupa {
+    background: rgba(236,72,153,.15);
+    color: #f472b6;
+}
+
+.table-badge.alimentacao {
+    background: rgba(16,185,129,.15);
+    color: #34d399;
+}
+
+.table-badge.tecnologia {
+    background: rgba(59,130,246,.15);
+    color: #60a5fa;
+}
+
+.table-badge.transporte {
+    background: rgba(245,158,11,.15);
+    color: #fbbf24;
+}
+
+.table-badge.casa {
+    background: rgba(139,92,246,.15);
+    color: #a78bfa;
+}
+
+.table-badge.presentes {
+    background: rgba(239,68,68,.15);
+    color: #f87171;
+}
+
+.table-badge.lazer {
+    background: rgba(6,182,212,.15);
+    color: #22d3ee;
+}
+
+.table-badge.extras {
+    background: rgba(107,114,128,.2);
+    color: #d1d5db;
+}
 .cell-amount {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 600;

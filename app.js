@@ -22,7 +22,7 @@ let firebasePersistence = {
 // Default Mock Data based on spreadsheet screenshots
 const DEFAULT_MOCK_DATA = {
     months: ["2026-08", "2026-09", "2026-10", "2026-11", "2026-12", "2027-01"],
-    
+
     // Purchases (Credit card installments)
     purchases: [
         { id: "1", description: "AirFryer nossa casa", card: "Itaú", category: "Presentes", totalValue: 252.00, installments: 5, date: "2026-03-10" },
@@ -32,7 +32,7 @@ const DEFAULT_MOCK_DATA = {
         { id: "5", description: "Jaqueta", card: "Itaú", category: "Roupa", totalValue: 323.91, installments: 4, date: "2026-05-17" },
         { id: "6", description: "Show Bk", card: "Itaú", category: "Extras", totalValue: 226.79, installments: 3, date: "2026-06-04" },
         { id: "7", description: "Teclado", card: "Itaú", category: "Extras", totalValue: 197.48, installments: 3, date: "2026-06-15" },
-        
+
         // Adjustments to match exact totals of spreadsheet
         { id: "adj_itau_aug", description: "Outras Compras Itaú (Ajuste)", card: "Itaú", category: "Extras", totalValue: 531.56, installments: 1, date: "2026-08-01" },
         { id: "adj_itau_sep", description: "Outras Compras Itaú (Ajuste)", card: "Itaú", category: "Extras", totalValue: 146.99, installments: 1, date: "2026-09-01" },
@@ -76,8 +76,8 @@ const DEFAULT_MOCK_DATA = {
             amount: 61.99,
             installments: 10,
             startMonth: "2026-08",
-            statuses: { 
-                "2026-08": "pending", "2026-09": "pending", "2026-10": "pending", 
+            statuses: {
+                "2026-08": "pending", "2026-09": "pending", "2026-10": "pending",
                 "2026-11": "pending", "2026-12": "pending", "2027-01": "pending",
                 "2027-02": "pending", "2027-03": "pending", "2027-04": "pending",
                 "2027-05": "pending"
@@ -91,9 +91,9 @@ const DEFAULT_MOCK_DATA = {
             amount: 245.70,
             installments: 6,
             startMonth: "2026-05",
-            statuses: { 
-                "2026-05": "paid", "2026-06": "paid", "2026-07": "paid", 
-                "2026-08": "pending", "2026-09": "pending", "2026-10": "pending" 
+            statuses: {
+                "2026-05": "paid", "2026-06": "paid", "2026-07": "paid",
+                "2026-08": "pending", "2026-09": "pending", "2026-10": "pending"
             },
             affectBudget: false
         },
@@ -257,11 +257,11 @@ function addMonths(monthStr, monthsToAdd) {
     const parts = monthStr.split('-');
     let year = parseInt(parts[0], 10);
     let month = parseInt(parts[1], 10) - 1; // 0-indexed
-    
+
     month += monthsToAdd;
     year += Math.floor(month / 12);
     month = (month % 12 + 12) % 12;
-    
+
     return `${year}-${String(month + 1).padStart(2, '0')}`;
 }
 
@@ -295,7 +295,7 @@ function getP2PMonthForIndex(agreement, index) {
 // Calculate credit card bills for a month
 function calculateCardBill(cardName, targetMonth) {
     let total = 0;
-    
+
     // 1. Installments
     state.purchases.forEach(p => {
         if (p.card === cardName) {
@@ -305,14 +305,14 @@ function calculateCardBill(cardName, targetMonth) {
             }
         }
     });
-    
+
     // 2. Subscriptions
     state.subscriptions.forEach(s => {
         if (s.card === cardName) {
             total += s.value;
         }
     });
-    
+
     return total;
 }
 
@@ -320,24 +320,24 @@ function calculateCardBill(cardName, targetMonth) {
 function calculateMonthStatus(targetMonth) {
     const itauBill = calculateCardBill("Itaú", targetMonth);
     const nubankBill = calculateCardBill("Nubank", targetMonth);
-    
+
     // Get plan details
     const plan = state.planning[targetMonth] || { income: [], fixed: [], variable: [] };
-    
+
     // Sum incomes
     let incomeSum = plan.income.reduce((sum, item) => sum + item.value, 0);
-    
+
     // Sum expenses (planner fixed & variable)
     let expensesSum = 0;
-    
+
     plan.fixed.forEach(item => {
         expensesSum += item.value;
     });
-    
+
     plan.variable.forEach(item => {
         expensesSum += item.value;
     });
-    
+
     // Add dynamically calculated credit cards
     expensesSum += itauBill + nubankBill;
 
@@ -362,9 +362,9 @@ function calculateMonthStatus(targetMonth) {
             }
         }
     });
-    
+
     const netBalance = incomeSum - expensesSum;
-    
+
     return {
         incomeSum,
         expensesSum,
@@ -383,7 +383,7 @@ function calculateMonthStatus(targetMonth) {
 function renderMonthCarousel() {
     const container = document.getElementById("month-carousel");
     container.innerHTML = "";
-    
+
     const div = document.createElement("div");
     div.className = "month-item";
     div.innerText = formatMonthYear(activeMonth);
@@ -393,25 +393,25 @@ function renderMonthCarousel() {
 // Render the top widgets and active cards
 function renderKPIs() {
     const stats = calculateMonthStatus(activeMonth);
-    
+
     document.getElementById("kpi-income").innerText = formatCurrency(stats.incomeSum);
     document.getElementById("kpi-expenses").innerText = formatCurrency(stats.expensesSum);
     document.getElementById("kpi-cards").innerText = formatCurrency(stats.totalCards);
-    
+
     const balanceEl = document.getElementById("kpi-balance");
     balanceEl.innerText = formatCurrency(stats.netBalance);
-    
+
     // Change styling for negative balance
     if (stats.netBalance < 0) {
         balanceEl.style.color = "var(--danger)";
     } else {
         balanceEl.style.color = "var(--success)";
     }
-    
+
     // Update sidebar balance
     document.getElementById("sidebar-net-balance").innerText = formatCurrency(stats.netBalance);
     const progressEl = document.getElementById("sidebar-balance-progress");
-    
+
     let percent = stats.incomeSum > 0 ? (stats.netBalance / stats.incomeSum) * 100 : 0;
     percent = Math.max(0, Math.min(100, percent));
     progressEl.style.width = `${percent}%`;
@@ -419,23 +419,23 @@ function renderKPIs() {
     // Render Cards page balances
     document.getElementById("itau-card-bill").innerText = formatCurrency(stats.itauBill);
     document.getElementById("nubank-card-bill").innerText = formatCurrency(stats.nubankBill);
-    
+
     // Update Savings indicators on Dashboard
     const plan = state.planning[activeMonth] || { fixed: [] };
     const lifeSavings = plan.fixed.find(f => f.description.toLowerCase().includes("poupança de vida"))?.value || 0;
     const travelSavings = plan.fixed.find(f => f.description.toLowerCase().includes("poupança viagem"))?.value || 0;
-    
+
     document.getElementById("savings-life-value").innerText = formatCurrency(lifeSavings);
     document.getElementById("savings-travel-value").innerText = formatCurrency(travelSavings);
-    
+
     // Adjust visual progress bars for savings targets
     const lifeProgress = document.querySelector(".life-fill");
     const travelProgress = document.querySelector(".travel-fill");
-    
+
     // Normalize percentages based on arbitrary high goals (e.g. Life=1200, Travel=1200)
     let lifePercent = Math.min(100, (lifeSavings / 1200) * 100);
     let travelPercent = Math.min(100, (travelSavings / 1200) * 100);
-    
+
     lifeProgress.style.width = `${lifePercent}%`;
     travelProgress.style.width = `${travelPercent}%`;
 }
@@ -444,24 +444,24 @@ function renderKPIs() {
 function renderCharts() {
     const ctxFlow = document.getElementById("flowChart").getContext("2d");
     const ctxCat = document.getElementById("categoryChart").getContext("2d");
-    
+
     // 1. Flow Chart: Revenues vs Expenses for all months
     const monthsData = state.months;
     const incomes = [];
     const expenses = [];
-    
+
     monthsData.forEach(m => {
         const s = calculateMonthStatus(m);
         incomes.push(s.incomeSum);
         expenses.push(s.expensesSum);
     });
-    
+
     const formattedLabels = monthsData.map(m => formatMonthYear(m));
-    
+
     if (flowChartInstance) {
         flowChartInstance.destroy();
     }
-    
+
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     const gridColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
     const labelColor = isDark ? "#9ca3af" : "#4b5563";
@@ -516,11 +516,11 @@ function renderCharts() {
             }
         }
     });
-    
+
     // 2. Category Pie Chart for the active month
     const activePlan = state.planning[activeMonth] || { fixed: [], variable: [] };
     const categoriesMap = {};
-    
+
     // Add planning items (except Cards because they are calculated separately and we categorize their inner contents!)
     activePlan.fixed.forEach(item => {
         if (!item.description.includes("Itaú") && !item.description.includes("Nubank")) {
@@ -528,12 +528,12 @@ function renderCharts() {
             categoriesMap[cat] = (categoriesMap[cat] || 0) + item.value;
         }
     });
-    
+
     activePlan.variable.forEach(item => {
         const cat = item.description;
         categoriesMap[cat] = (categoriesMap[cat] || 0) + item.value;
     });
-    
+
     // Add Credit Card breakdown by categories
     state.purchases.forEach(p => {
         const instInfo = getInstallmentInfo(p, activeMonth);
@@ -542,19 +542,19 @@ function renderCharts() {
             categoriesMap[p.category] = (categoriesMap[p.category] || 0) + val;
         }
     });
-    
+
     // Add Subscriptions
     state.subscriptions.forEach(s => {
         categoriesMap["Assinaturas"] = (categoriesMap["Assinaturas"] || 0) + s.value;
     });
-    
+
     const catLabels = Object.keys(categoriesMap);
     const catValues = Object.values(categoriesMap);
-    
+
     if (categoryChartInstance) {
         categoryChartInstance.destroy();
     }
-    
+
     if (catValues.length === 0) {
         // Draw empty indicator
         categoryChartInstance = new Chart(ctxCat, {
@@ -577,14 +577,14 @@ function renderCharts() {
         });
         return;
     }
-    
+
     // Generate harmonious colors
     const colors = [
-        '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', 
+        '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
         '#f59e0b', '#10b981', '#3b82f6', '#14b8a6',
         '#a855f7', '#06b6d4', '#84cc16'
     ];
-    
+
     categoryChartInstance = new Chart(ctxCat, {
         type: 'doughnut',
         data: {
@@ -613,9 +613,9 @@ function renderCharts() {
 function renderInstallmentsTable() {
     const tbody = document.querySelector("#installments-table tbody");
     tbody.innerHTML = "";
-    
+
     let activePurchases = [];
-    
+
     state.purchases.forEach(p => {
         const instInfo = getInstallmentInfo(p, activeMonth);
         if (instInfo.active) {
@@ -626,29 +626,41 @@ function renderInstallmentsTable() {
             });
         }
     });
-    
+
     if (activePurchases.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Nenhuma compra parcelada caindo neste mês.</td></tr>`;
         return;
     }
-    
+
     // Sort by date descending
     activePurchases.sort((a, b) => new Date(b.purchase.date) - new Date(a.purchase.date));
-    
+
     activePurchases.forEach(item => {
         const tr = document.createElement("tr");
         const p = item.purchase;
-        
+
         // Formatting dates
         const dateParts = p.date.split('-');
         const dateFormatted = `${dateParts[2]}/${dateParts[1]}/${dateParts[0].substring(2)}`;
-        
+
         const cardBadgeClass = p.card === "Itaú" ? "table-badge orange" : "table-badge purple";
-        
+        const categorias = {
+            "Roupa": "roupa",
+            "Alimentação": "alimentacao",
+            "Casa": "casa",
+            "Tecnologia": "tecnologia",
+            "Transporte": "transporte",
+            "Presentes": "presentes",
+            "Lazer": "lazer",
+            "Extras": "extras"
+        };
+
+        const categoriaClasse = categorias[p.category] ?? "default";
+
         tr.innerHTML = `
             <td>${dateFormatted}</td>
             <td style="font-weight: 500;">${p.description}</td>
-            <td><span class="table-badge default">${p.category}</span></td>
+            <td><span class="table-badge ${categoriaClasse}">${p.category}</span></td>
             <td><span class="${cardBadgeClass}">${p.card}</span></td>
             <td style="font-family: 'JetBrains Mono', monospace; font-weight: 500;">${item.installmentIndex}/${p.installments}</td>
             <td class="cell-amount">${formatCurrency(p.totalValue)}</td>
@@ -659,13 +671,13 @@ function renderInstallmentsTable() {
                 </button>
             </td>
         `;
-        
+
         tbody.appendChild(tr);
     });
-    
+
     // Attach deletion handlers
     document.querySelectorAll(".delete-purchase-btn").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             const id = this.getAttribute("data-id");
             if (confirm("Deseja realmente remover esta compra parcelada de todo o histórico?")) {
                 deletePurchase(id);
@@ -678,13 +690,13 @@ function renderInstallmentsTable() {
 function renderRecurrentPurchases() {
     const container = document.getElementById("recurrent-purchases-container");
     container.innerHTML = "";
-    
+
     let total = 0;
-    
+
     state.subscriptions.forEach(s => {
         total += s.value;
         const cardClass = s.card === "Itaú" ? "table-badge orange" : (s.card === "Nubank" ? "table-badge purple" : "table-badge default");
-        
+
         const card = document.createElement("div");
         card.className = "recurrent-card";
         card.innerHTML = `
@@ -704,12 +716,12 @@ function renderRecurrentPurchases() {
         `;
         container.appendChild(card);
     });
-    
+
     document.getElementById("recurrent-total-val").innerText = formatCurrency(total);
-    
+
     // Attach deletion handlers
     document.querySelectorAll(".delete-sub-btn").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             const id = this.getAttribute("data-id");
             if (confirm("Remover esta assinatura mensal?")) {
                 deleteSubscription(id);
@@ -722,41 +734,41 @@ function renderRecurrentPurchases() {
 function renderP2PAgreements() {
     const container = document.getElementById("p2p-deck-container");
     container.innerHTML = "";
-    
+
     const filtered = state.p2pAgreements.filter(a => a.type === activeP2PType);
-    
+
     if (filtered.length === 0) {
         container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Nenhum acordo cadastrado para esta aba.</div>`;
         return;
     }
-    
+
     filtered.forEach(agreement => {
         const card = document.createElement("div");
         card.className = "p2p-agreement-card";
-        
+
         // Calculate progress
         let paidCount = 0;
         const totalCount = agreement.installments;
-        
+
         for (let i = 0; i < totalCount; i++) {
             const m = getP2PMonthForIndex(agreement, i);
             if (agreement.statuses[m] === "paid") {
                 paidCount++;
             }
         }
-        
+
         const percent = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
         const colorClass = agreement.type === "receber" ? "receber" : "pagar";
         const progressLabel = agreement.type === "receber" ? "recebidas" : "pagas";
-        
+
         let p2pMonthBadges = "";
-        
+
         // Generate matrix of pills (limit to showing the installments)
         for (let i = 0; i < totalCount; i++) {
             const monthStr = getP2PMonthForIndex(agreement, i);
             const formatted = formatMonthYear(monthStr);
             const status = agreement.statuses[monthStr] || "pending";
-            
+
             let statusClass = "status-future";
             // Check if month is in our active dashboard scope
             if (status === "paid") {
@@ -764,14 +776,14 @@ function renderP2PAgreements() {
             } else if (status === "pending") {
                 statusClass = "status-pending";
             }
-            
+
             p2pMonthBadges += `
                 <div class="p2p-month-pill ${statusClass}" data-agreement-id="${agreement.id}" data-month="${monthStr}">
                     ${formatted}
                 </div>
             `;
         }
-        
+
         card.innerHTML = `
             <div class="p2p-card-header">
                 <div>
@@ -809,22 +821,22 @@ function renderP2PAgreements() {
                 </button>
             </div>
         `;
-        
+
         container.appendChild(card);
     });
-    
+
     // Attach badge click event listeners to toggle status
     document.querySelectorAll(".p2p-month-pill").forEach(pill => {
-        pill.addEventListener("click", function() {
+        pill.addEventListener("click", function () {
             const agreementId = this.getAttribute("data-agreement-id");
             const month = this.getAttribute("data-month");
             toggleP2PMonthStatus(agreementId, month);
         });
     });
-    
+
     // Attach deletion event listeners
     document.querySelectorAll(".delete-agreement-btn").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             const id = this.getAttribute("data-id");
             if (confirm("Deseja realmente remover este acordo financeiro por completo?")) {
                 deleteAgreement(id);
@@ -834,7 +846,7 @@ function renderP2PAgreements() {
 
     // Attach budget togglers
     document.querySelectorAll(".p2p-budget-toggle").forEach(chk => {
-        chk.addEventListener("change", function() {
+        chk.addEventListener("change", function () {
             const id = this.getAttribute("data-id");
             const checked = this.checked;
             toggleAgreementAffectBudget(id, checked);
@@ -846,15 +858,15 @@ function renderP2PAgreements() {
 function renderPlanningTables() {
     const plan = state.planning[activeMonth] || { income: [], fixed: [], variable: [] };
     const stats = calculateMonthStatus(activeMonth);
-    
+
     const renderTableRows = (items, tbodyEl, showCards = false) => {
         tbodyEl.innerHTML = "";
-        
+
         if (items.length === 0 && !showCards) {
             tbodyEl.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 12px;">Nenhum item lançado.</td></tr>`;
             return;
         }
-        
+
         // Render credit cards at the top of Fixed expenses if enabled
         if (showCards) {
             const itauTr = document.createElement("tr");
@@ -866,7 +878,7 @@ function renderPlanningTables() {
                 <td class="text-center" style="color: var(--text-muted); font-size: 12px;">Link</td>
             `;
             tbodyEl.appendChild(itauTr);
-            
+
             const nubankTr = document.createElement("tr");
             nubankTr.innerHTML = `
                 <td style="font-weight: 500;">💳 Cartão Nubank <span style="font-size: 11px; color: var(--text-muted);">🔗 automático</span></td>
@@ -877,7 +889,7 @@ function renderPlanningTables() {
             `;
             tbodyEl.appendChild(nubankTr);
         }
-        
+
         items.forEach(item => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
@@ -896,20 +908,20 @@ function renderPlanningTables() {
             tbodyEl.appendChild(tr);
         });
     };
-    
+
     // Incomes
     renderTableRows(plan.income, document.querySelector("#planning-income-table tbody"));
-    
+
     // Fixed
     renderTableRows(plan.fixed, document.querySelector("#planning-fixed-table tbody"), true);
-    
+
     // Variable
     renderTableRows(plan.variable, document.querySelector("#planning-variable-table tbody"));
-    
+
     // Summaries inside planner
     document.getElementById("planner-income-sum").innerText = formatCurrency(stats.incomeSum);
     document.getElementById("planner-expense-sum").innerText = formatCurrency(stats.expensesSum);
-    
+
     const netSumEl = document.getElementById("planner-net-sum");
     netSumEl.innerText = formatCurrency(stats.netBalance);
     if (stats.netBalance < 0) {
@@ -917,17 +929,17 @@ function renderPlanningTables() {
     } else {
         netSumEl.style.color = "var(--success)";
     }
-    
+
     // Attach double click to inline editing
     document.querySelectorAll(".editable-value").forEach(span => {
-        span.addEventListener("dblclick", function() {
+        span.addEventListener("dblclick", function () {
             makeValueEditable(this);
         });
     });
-    
+
     // Attach deletion row events
     document.querySelectorAll(".delete-plan-row-btn").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             const id = this.getAttribute("data-id");
             deletePlanningRow(id);
         });
@@ -938,13 +950,13 @@ function renderPlanningTables() {
 function makeValueEditable(span) {
     const id = span.getAttribute("data-id");
     const val = parseFloat(span.getAttribute("data-val"));
-    
+
     const input = document.createElement("input");
     input.type = "number";
     input.step = "0.01";
     input.className = "inline-edit-input";
     input.value = val.toFixed(2);
-    
+
     const saveEdit = () => {
         const newVal = parseFloat(input.value);
         if (!isNaN(newVal)) {
@@ -955,14 +967,14 @@ function makeValueEditable(span) {
             input.replaceWith(span);
         }
     };
-    
+
     input.addEventListener("blur", saveEdit);
-    input.addEventListener("keydown", function(e) {
+    input.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             saveEdit();
         }
     });
-    
+
     span.style.display = "none";
     span.after(input);
     input.focus();
@@ -972,7 +984,7 @@ function makeValueEditable(span) {
 // Update badges for sidebar and P2P counts
 function updatePendingBadges() {
     let pendingCount = 0;
-    
+
     state.p2pAgreements.forEach(agreement => {
         // Count pending items within our months data scope
         state.months.forEach(m => {
@@ -981,7 +993,7 @@ function updatePendingBadges() {
             }
         });
     });
-    
+
     const badge = document.getElementById("pending-p2p-badge");
     badge.innerText = pendingCount;
     badge.style.display = pendingCount > 0 ? "inline-flex" : "none";
@@ -1011,7 +1023,7 @@ function addPurchase(desc, date, card, totalValue, installments, category) {
         installments: parseInt(installments, 10),
         category: category
     });
-    
+
     saveState();
     refreshAllUI();
 }
@@ -1034,7 +1046,7 @@ function addSubscription(name, value, day, card, color) {
         card: card,
         color: color
     });
-    
+
     saveState();
     refreshAllUI();
 }
@@ -1050,13 +1062,13 @@ function deleteSubscription(id) {
 function addAgreement(name, type, amount, installments, startMonth) {
     const newId = "a_" + Date.now();
     const statuses = {};
-    
+
     // Auto-fill all statuses as pending initially
     for (let i = 0; i < installments; i++) {
         const m = addMonths(startMonth, i);
         statuses[m] = "pending";
     }
-    
+
     state.p2pAgreements.push({
         id: newId,
         name: name,
@@ -1067,7 +1079,7 @@ function addAgreement(name, type, amount, installments, startMonth) {
         statuses: statuses,
         affectBudget: false
     });
-    
+
     saveState();
     refreshAllUI();
 }
@@ -1082,7 +1094,7 @@ function toggleP2PMonthStatus(agreementId, month) {
         } else if (current === "paid") {
             agreement.statuses[month] = "pending";
         }
-        
+
         saveState();
         refreshAllUI();
     }
@@ -1109,14 +1121,14 @@ function toggleAgreementAffectBudget(id, checked) {
 function addPlanningRow(type, description, val) {
     const newId = "pr_" + Date.now();
     const plan = state.planning[activeMonth];
-    
+
     if (plan) {
         plan[type].push({
             id: newId,
             description: description,
             value: parseFloat(val)
         });
-        
+
         saveState();
         refreshAllUI();
     }
@@ -1128,7 +1140,7 @@ function updatePlanningRowValue(id, newVal) {
     if (plan) {
         // Find row inside fixed, variable or income lists
         let found = false;
-        
+
         ['fixed', 'variable', 'income'].forEach(listName => {
             if (found) return;
             const item = plan[listName].find(i => i.id === id);
@@ -1137,7 +1149,7 @@ function updatePlanningRowValue(id, newVal) {
                 found = true;
             }
         });
-        
+
         if (found) {
             saveState();
             refreshAllUI();
@@ -1152,7 +1164,7 @@ function deletePlanningRow(id) {
         ['fixed', 'variable', 'income'].forEach(listName => {
             plan[listName] = plan[listName].filter(item => item.id !== id);
         });
-        
+
         saveState();
         refreshAllUI();
     }
@@ -1168,7 +1180,7 @@ function refreshAllUI() {
     renderPlanningTables();
     updatePendingBadges();
     updateCommentBadges();
-    
+
     // Draw charts after DOM is loaded and metrics are updated
     renderCharts();
 }
@@ -1297,25 +1309,25 @@ function saveState() {
 // Initialize Application state
 async function init() {
     state = await loadPersistedState();
-    
+
     // Populate agreement start month selectors in HTML modal
     populateStartMonthSelectors();
-    
+
     // Trigger initial UI rendering
     refreshAllUI();
-    
+
     // Register tab button selectors
     setupTabListeners();
-    
+
     // Setup modal event triggers
     setupModalListeners();
-    
+
     // Setup carousel button triggers
     setupCarouselListeners();
-    
+
     // Setup utility utilities buttons (backup, theme)
     setupUtilityListeners();
-    
+
     // Setup comments listeners
     setupCommentListeners();
 }
@@ -1324,32 +1336,32 @@ async function init() {
 function populateStartMonthSelectors() {
     const select = document.getElementById("a-start");
     select.innerHTML = "";
-    
+
     // Offer starting months from 3 months ago to 12 months ahead
     const today = new Date();
     let currentY = today.getFullYear();
     let currentM = today.getMonth(); // 0-11
-    
+
     // Go 3 months back
     currentM -= 3;
     if (currentM < 0) {
         currentM += 12;
         currentY -= 1;
     }
-    
+
     for (let i = 0; i < 18; i++) {
         const targetYear = currentY + Math.floor((currentM + i) / 12);
         const targetMonth = ((currentM + i) % 12 + 12) % 12;
         const value = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
-        
+
         const opt = document.createElement("option");
         opt.value = value;
         opt.innerText = formatMonthYear(value);
-        
+
         if (value === activeMonth) {
             opt.selected = true;
         }
-        
+
         select.appendChild(opt);
     }
 }
@@ -1360,16 +1372,16 @@ function populateStartMonthSelectors() {
 
 function setupTabListeners() {
     document.querySelectorAll(".nav-item").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
             this.classList.add("active");
-            
+
             const tabId = this.getAttribute("data-tab");
             activeTab = tabId;
-            
+
             document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
             document.getElementById(`tab-${tabId}`).classList.add("active");
-            
+
             // Re-render specifically for P2P matrix or planner if needed
             if (tabId === "p2p") {
                 renderP2PAgreements();
@@ -1381,10 +1393,10 @@ function setupTabListeners() {
             }
         });
     });
-    
+
     // Inner P2P tabs switcher
     document.querySelectorAll(".p2p-tab-btn").forEach(btn => {
-        btn.addEventListener("click", function() {
+        btn.addEventListener("click", function () {
             document.querySelectorAll(".p2p-tab-btn").forEach(b => b.classList.remove("active"));
             this.classList.add("active");
             activeP2PType = this.getAttribute("data-p2p-type");
@@ -1418,7 +1430,7 @@ function setupCarouselListeners() {
         }
         refreshAllUI();
     });
-    
+
     document.getElementById("next-month-btn").addEventListener("click", () => {
         const curIdx = state.months.indexOf(activeMonth);
         if (curIdx < state.months.length - 1) {
@@ -1451,21 +1463,21 @@ function setupModalListeners() {
     document.getElementById("add-recurring-btn").addEventListener("click", () => openModal("modal-recurring"));
     document.getElementById("add-agreement-btn").addEventListener("click", () => openModal("modal-agreement"));
     document.getElementById("add-planning-row-btn").addEventListener("click", () => openModal("modal-planning-row"));
-    
+
     // Close Modals
     document.querySelectorAll("[data-modal]").forEach(btn => {
-        btn.addEventListener("click", function(e) {
+        btn.addEventListener("click", function (e) {
             if (e.target === this || this.classList.contains("close-modal-btn") || this.innerText === "Cancelar") {
                 const modalId = this.getAttribute("data-modal");
                 closeModal(modalId);
             }
         });
     });
-    
+
     // Form Submissions
-    
+
     // 1. Purchase
-    document.getElementById("purchase-form").addEventListener("submit", function(e) {
+    document.getElementById("purchase-form").addEventListener("submit", function (e) {
         e.preventDefault();
         const desc = document.getElementById("p-description").value;
         const date = document.getElementById("p-date").value;
@@ -1473,47 +1485,47 @@ function setupModalListeners() {
         const total = document.getElementById("p-total").value;
         const installments = document.getElementById("p-installments").value;
         const cat = document.getElementById("p-category").value;
-        
+
         addPurchase(desc, date, card, total, installments, cat);
         closeModal("modal-purchase");
         this.reset();
     });
-    
+
     // 2. Subscription
-    document.getElementById("recurring-form").addEventListener("submit", function(e) {
+    document.getElementById("recurring-form").addEventListener("submit", function (e) {
         e.preventDefault();
         const name = document.getElementById("r-name").value;
         const val = document.getElementById("r-value").value;
         const day = document.getElementById("r-day").value;
         const card = document.getElementById("r-card").value;
         const color = document.getElementById("r-color").value;
-        
+
         addSubscription(name, val, day, card, color);
         closeModal("modal-recurring");
         this.reset();
     });
-    
+
     // 3. Agreement
-    document.getElementById("agreement-form").addEventListener("submit", function(e) {
+    document.getElementById("agreement-form").addEventListener("submit", function (e) {
         e.preventDefault();
         const name = document.getElementById("a-name").value;
         const type = document.getElementById("a-type").value;
         const amount = document.getElementById("a-amount").value;
         const installments = document.getElementById("a-installments").value;
         const start = document.getElementById("a-start").value;
-        
+
         addAgreement(name, type, amount, installments, start);
         closeModal("modal-agreement");
         this.reset();
     });
-    
+
     // 4. Planning row
-    document.getElementById("planning-row-form").addEventListener("submit", function(e) {
+    document.getElementById("planning-row-form").addEventListener("submit", function (e) {
         e.preventDefault();
         const type = document.getElementById("pl-type").value;
         const desc = document.getElementById("pl-description").value;
         const val = document.getElementById("pl-val").value;
-        
+
         addPlanningRow(type, desc, val);
         closeModal("modal-planning-row");
         this.reset();
@@ -1524,7 +1536,7 @@ function openModal(modalId) {
     const modal = document.getElementById(modalId);
     modal.style.display = "flex";
     setTimeout(() => modal.classList.add("active"), 10);
-    
+
     // Pre-fill today's date on purchase form if empty
     if (modalId === "modal-purchase") {
         document.getElementById("p-date").value = new Date().toISOString().substring(0, 10);
@@ -1546,17 +1558,17 @@ function setupUtilityListeners() {
         localStorage.setItem("financeflow_theme", next);
         renderCharts();
     });
-    
+
     // Set stored theme
     const storedTheme = localStorage.getItem("financeflow_theme") || "dark";
     document.documentElement.setAttribute("data-theme", storedTheme);
-    
+
     // Backup export JSON
     document.getElementById("export-btn").addEventListener("click", () => {
         const json = JSON.stringify(state, null, 2);
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement("a");
         a.href = url;
         a.download = `financeflow_backup_${activeMonth}.json`;
@@ -1565,18 +1577,18 @@ function setupUtilityListeners() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     });
-    
+
     // Backup import JSON
     const fileInput = document.getElementById("file-import-input");
     document.getElementById("import-btn").addEventListener("click", () => {
         fileInput.click();
     });
-    
-    fileInput.addEventListener("change", function() {
+
+    fileInput.addEventListener("change", function () {
         const file = this.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const importedState = JSON.parse(e.target.result);
                     if (importedState.months && importedState.planning) {
@@ -1594,7 +1606,7 @@ function setupUtilityListeners() {
             reader.readAsText(file);
         }
     });
-    
+
     // Reset back to initial default spreadsheet mockup data
     document.getElementById("reset-btn").addEventListener("click", () => {
         if (confirm("Isto irá apagar todas as alterações e restaurar os dados originais contidos nas imagens das suas planilhas. Deseja prosseguir?")) {
@@ -1725,7 +1737,7 @@ function renderComments(cardId) {
         try {
             const date = new Date(comment.date);
             dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' +
-                      date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         } catch (e) {
             dateStr = comment.date;
         }
