@@ -89,6 +89,83 @@ body {
     min-height: 100vh;
 }
 
+.auth-pending .app-container {
+    display: none;
+}
+
+.auth-ready .auth-screen {
+    display: none;
+}
+
+.auth-screen {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top left, var(--primary-glow), transparent 34%),
+        var(--bg-app);
+}
+
+.auth-panel {
+    width: min(calc(100vw - 48px), 420px);
+    background-color: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    padding: 28px;
+}
+
+.auth-panel * {
+    min-width: 0;
+}
+
+.auth-brand {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.auth-brand h1 {
+    font-size: 30px;
+    line-height: 1;
+}
+
+.auth-brand p {
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.auth-form {
+    display: grid;
+    gap: 16px;
+}
+
+.auth-form input {
+    width: 100%;
+}
+
+.auth-error {
+    min-height: 20px;
+    color: var(--danger);
+    font-size: 14px;
+}
+
+.auth-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.auth-actions .btn {
+    justify-content: center;
+}
+
+.btn:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 6px;
@@ -271,6 +348,23 @@ body {
     justify-content: space-between;
     padding: 0 32px;
     z-index: 10;
+}
+
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border-color);
+}
+
+.user-menu span {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 14px;
 }
 
 /* Month Selector */
@@ -1922,6 +2016,19 @@ input:focus, select:focus {
 }
 
 @media (max-width: 520px) {
+    .auth-screen {
+        padding: 18px;
+    }
+
+    .auth-panel {
+        width: min(calc(100vw - 80px), 420px);
+        padding: 24px;
+    }
+
+    .auth-actions {
+        grid-template-columns: 1fr;
+    }
+
     .top-header {
         padding: 12px;
     }

@@ -16,8 +16,10 @@ let categoryChartInstance = null;
 let firebasePersistence = {
     enabled: false,
     docRef: null,
-    saveTimer: null
+    saveTimer: null,
+    user: null
 };
+let appInitialized = false;
 
 // Default Mock Data based on spreadsheet screenshots
 const DEFAULT_MOCK_DATA = {
@@ -1206,8 +1208,13 @@ function normalizeState(nextState) {
     return nextState;
 }
 
+function getLocalStateKey() {
+    const userId = firebasePersistence.user?.uid || window.firebase?.auth?.().currentUser?.uid;
+    return userId ? `financeflow_state_${userId}` : "financeflow_state";
+}
+
 function loadLocalState() {
-    const stored = localStorage.getItem("financeflow_state");
+    const stored = localStorage.getItem(getLocalStateKey());
     if (!stored) return getDefaultState();
 
     try {
@@ -1242,8 +1249,14 @@ async function setupFirebasePersistence() {
         }
 
         const auth = firebase.auth();
-        const credential = await auth.signInAnonymously();
-        const user = credential.user || auth.currentUser;
+        const user = auth.currentUser;
+
+        if (!user) {
+            firebasePersistence.enabled = false;
+            firebasePersistence.docRef = null;
+            firebasePersistence.user = null;
+            return false;
+        }
 
         firebasePersistence.docRef = firebase
             .firestore()
@@ -1252,44 +1265,46 @@ async function setupFirebasePersistence() {
             .collection("finance")
             .doc("state");
         firebasePersistence.enabled = true;
+        firebasePersistence.user = user;
 
         return true;
     } catch (e) {
         console.warn("Firebase indisponivel. Usando localStorage.", e);
         firebasePersistence.enabled = false;
         firebasePersistence.docRef = null;
+        firebasePersistence.user = null;
         return false;
     }
 }
 
 async function loadPersistedState() {
-    const localState = loadLocalState();
     const hasCloud = await setupFirebasePersistence();
 
     if (!hasCloud) {
-        return localState;
+        return loadLocalState();
     }
 
     try {
         const snapshot = await firebasePersistence.docRef.get();
         if (snapshot.exists && snapshot.data().state) {
             const cloudState = normalizeState(snapshot.data().state);
-            localStorage.setItem("financeflow_state", JSON.stringify(cloudState));
+            localStorage.setItem(getLocalStateKey(), JSON.stringify(cloudState));
             return cloudState;
         }
 
-        localStorage.setItem("financeflow_state", JSON.stringify(localState));
+        const initialState = getDefaultState();
+        localStorage.setItem(getLocalStateKey(), JSON.stringify(initialState));
         saveState();
-        return localState;
+        return initialState;
     } catch (e) {
         console.warn("Nao foi possivel carregar dados do Firestore. Usando localStorage.", e);
-        return localState;
+        return loadLocalState();
     }
 }
 
 // Save state locally and, when configured, sync it to Firestore.
 function saveState() {
-    localStorage.setItem("financeflow_state", JSON.stringify(state));
+    localStorage.setItem(getLocalStateKey(), JSON.stringify(state));
 
     if (!firebasePersistence.enabled || !firebasePersistence.docRef) {
         return;
@@ -1306,8 +1321,143 @@ function saveState() {
     }, 400);
 }
 
+function initializeFirebaseApp() {
+    if (!hasFirebaseConfig()) {
+        return null;
+    }
+
+    if (!firebase.apps.length) {
+        firebase.initializeApp(window.firebaseConfig);
+    }
+
+    return firebase.auth();
+}
+
+function setAuthError(message = "") {
+    const errorEl = document.getElementById("auth-error");
+    if (errorEl) {
+        errorEl.innerText = message;
+    }
+}
+
+function getFriendlyAuthError(error) {
+    const fallback = "Nao foi possivel autenticar. Confira os dados e tente novamente.";
+    const messages = {
+        "auth/email-already-in-use": "Este e-mail ja tem uma conta. Use Entrar.",
+        "auth/invalid-email": "Digite um e-mail valido.",
+        "auth/invalid-login-credentials": "E-mail ou senha incorretos.",
+        "auth/user-not-found": "Conta nao encontrada. Crie uma conta primeiro.",
+        "auth/wrong-password": "Senha incorreta.",
+        "auth/weak-password": "Use uma senha com pelo menos 6 caracteres.",
+        "auth/network-request-failed": "Falha de conexao com o Firebase."
+    };
+
+    return messages[error?.code] || fallback;
+}
+
+function setAuthLoading(isLoading) {
+    document.getElementById("login-btn").disabled = isLoading;
+    document.getElementById("signup-btn").disabled = isLoading;
+}
+
+function setupAuthListeners(auth) {
+    const authForm = document.getElementById("auth-form");
+    const signupBtn = document.getElementById("signup-btn");
+
+    authForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setAuthError();
+        setAuthLoading(true);
+
+        try {
+            const email = document.getElementById("auth-email").value.trim();
+            const password = document.getElementById("auth-password").value;
+            await auth.signInWithEmailAndPassword(email, password);
+        } catch (error) {
+            setAuthError(getFriendlyAuthError(error));
+        } finally {
+            setAuthLoading(false);
+        }
+    });
+
+    signupBtn.addEventListener("click", async () => {
+        if (!authForm.reportValidity()) {
+            return;
+        }
+
+        setAuthError();
+        setAuthLoading(true);
+
+        try {
+            const email = document.getElementById("auth-email").value.trim();
+            const password = document.getElementById("auth-password").value;
+            await auth.createUserWithEmailAndPassword(email, password);
+        } catch (error) {
+            setAuthError(getFriendlyAuthError(error));
+        } finally {
+            setAuthLoading(false);
+        }
+    });
+}
+
+function showAuthenticatedApp(user) {
+    firebasePersistence.user = user;
+    const userEmailEl = document.getElementById("current-user-email");
+    if (userEmailEl) {
+        userEmailEl.innerText = user.email || "Conta conectada";
+    }
+
+    document.body.classList.remove("auth-pending");
+    document.body.classList.add("auth-ready");
+}
+
+function showLoginScreen() {
+    firebasePersistence.enabled = false;
+    firebasePersistence.docRef = null;
+    firebasePersistence.user = null;
+    document.body.classList.remove("auth-ready");
+    document.body.classList.add("auth-pending");
+}
+
+function setupAuthGate() {
+    const storedTheme = localStorage.getItem("financeflow_theme") || "dark";
+    document.documentElement.setAttribute("data-theme", storedTheme);
+
+    const auth = initializeFirebaseApp();
+    if (!auth) {
+        document.body.classList.remove("auth-pending");
+        document.body.classList.add("auth-ready");
+        init().catch((e) => {
+            console.error("Falha ao iniciar aplicacao.", e);
+            state = loadLocalState();
+            refreshAllUI();
+        });
+        return;
+    }
+
+    setupAuthListeners(auth);
+
+    auth.onAuthStateChanged((user) => {
+        if (!user) {
+            showLoginScreen();
+            return;
+        }
+
+        showAuthenticatedApp(user);
+        init().catch((e) => {
+            console.error("Falha ao iniciar aplicacao.", e);
+            state = loadLocalState();
+            refreshAllUI();
+        });
+    });
+}
+
 // Initialize Application state
 async function init() {
+    if (appInitialized) {
+        return;
+    }
+
     state = await loadPersistedState();
 
     // Populate agreement start month selectors in HTML modal
@@ -1330,6 +1480,8 @@ async function init() {
 
     // Setup comments listeners
     setupCommentListeners();
+
+    appInitialized = true;
 }
 
 // Populate dropdown selectors with future months
@@ -1550,6 +1702,16 @@ function closeModal(modalId) {
 }
 
 function setupUtilityListeners() {
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+            if (hasFirebaseConfig() && window.firebase?.auth().currentUser) {
+                await firebase.auth().signOut();
+                window.location.reload();
+            }
+        });
+    }
+
     // Theme Toggle
     document.getElementById("theme-toggle-btn").addEventListener("click", () => {
         const current = document.documentElement.getAttribute("data-theme");
@@ -1621,11 +1783,7 @@ function setupUtilityListeners() {
 
 // Start application when window loads
 window.addEventListener("DOMContentLoaded", () => {
-    init().catch((e) => {
-        console.error("Falha ao iniciar aplicacao.", e);
-        state = loadLocalState();
-        refreshAllUI();
-    });
+    setupAuthGate();
 });
 
 // ==========================================

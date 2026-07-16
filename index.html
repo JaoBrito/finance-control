@@ -9,11 +9,35 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <!-- CSS Link -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=auth-users">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="auth-pending">
+    <section class="auth-screen" id="auth-screen">
+        <div class="auth-panel">
+            <div class="auth-brand">
+                <span class="logo-icon">✨</span>
+                <h1>MeuControle</h1>
+                <p>Entre com sua conta para carregar suas informações financeiras.</p>
+            </div>
+            <form class="auth-form" id="auth-form">
+                <div class="form-group">
+                    <label for="auth-email">E-mail</label>
+                    <input type="email" id="auth-email" autocomplete="email" required placeholder="voce@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="auth-password">Senha</label>
+                    <input type="password" id="auth-password" autocomplete="current-password" required minlength="6" placeholder="Mínimo 6 caracteres">
+                </div>
+                <p class="auth-error" id="auth-error" role="alert"></p>
+                <div class="auth-actions">
+                    <button type="submit" class="btn btn-primary" id="login-btn">Entrar</button>
+                    <button type="button" class="btn btn-outline" id="signup-btn">Criar conta</button>
+                </div>
+            </form>
+        </div>
+    </section>
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
@@ -89,6 +113,10 @@
                         <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                         <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     </button>
+                    <div class="user-menu">
+                        <span id="current-user-email">Conta</span>
+                        <button class="btn btn-outline" id="logout-btn" title="Sair da conta">Sair</button>
+                    </div>
                 </div>
             </header>
 
@@ -668,9 +696,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <script src="firebase-config.js?v=auth-users"></script>
 
     <!-- Script Link -->
-    <script src="app.js"></script>
+    <script src="app.js?v=auth-users"></script>
 </body>
 </html>
