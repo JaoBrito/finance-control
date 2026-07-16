@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <!-- CSS Link -->
-    <link rel="stylesheet" href="style.css?v=auth-users">
+    <link rel="stylesheet" href="style.css?v=categories-installments">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -65,6 +65,10 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                     <span>Planejamento</span>
                 </button>
+                <button class="nav-item" data-tab="profile">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>Perfil</span>
+                </button>
             </nav>
             <div class="sidebar-footer">
                 <div class="quick-balance">
@@ -104,18 +108,17 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                         <span>Importar</span>
                     </button>
-                    <input type="file" id="file-import-input" accept=".json" style="display: none;">
-                    <button class="btn btn-outline" id="reset-btn" title="Restaurar dados das imagens">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-                        <span>Reset</span>
-                    </button>
+                    <input type="file" id="file-import-input" accept=".json,.xlsx,.xls,.csv" style="display: none;">
                     <button class="theme-toggle" id="theme-toggle-btn" title="Alternar Tema">
                         <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                         <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     </button>
                     <div class="user-menu">
                         <span id="current-user-email">Conta</span>
-                        <button class="btn btn-outline" id="logout-btn" title="Sair da conta">Sair</button>
+                        <button class="btn btn-outline" id="logout-btn" title="Sair da conta" aria-label="Sair da conta">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                            <span>Sair</span>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -148,7 +151,7 @@
                             <div class="kpi-info">
                                 <span class="kpi-label">Cartão de Crédito</span>
                                 <h3 id="kpi-cards">R$ 0,00</h3>
-                                <span class="kpi-subtext" id="kpi-cards-sub">Fatura Itaú + Nubank</span>
+                                <span class="kpi-subtext" id="kpi-cards-sub">Cartões cadastrados</span>
                             </div>
                         </div>
                         <div class="kpi-card balance-card">
@@ -282,41 +285,18 @@
 
                 <!-- 2. CARTÕES E COMPRAS -->
                 <section class="tab-panel" id="tab-cards">
-                    <!-- Cards Display Row -->
-                    <div class="cards-display-grid">
-                        <!-- Card 1: Itaú -->
-                        <div class="credit-card-glow itau-card">
-                            <div class="card-chip"></div>
-                            <div class="card-brand">Itaú</div>
-                            <div class="card-number">•••• •••• •••• 7321</div>
-                            <div class="card-info-row">
-                                <div class="card-info-col">
-                                    <span class="card-info-label">FATURA ATUAL</span>
-                                    <h4 class="card-info-value" id="itau-card-bill">R$ 0,00</h4>
-                                </div>
-                                <div class="card-info-col text-right">
-                                    <span class="card-info-label">VENCIMENTO</span>
-                                    <span class="card-info-value">Dia 10</span>
-                                </div>
-                            </div>
+                    <div class="cards-toolbar">
+                        <div>
+                            <h2>Cartões & Compras</h2>
+                            <p class="subtitle">Cadastre seus cartões e acompanhe compras parceladas e recorrentes.</p>
                         </div>
+                        <button class="btn btn-primary" id="add-card-btn">
+                            <span>+ Novo Cartão</span>
+                        </button>
+                    </div>
 
-                        <!-- Card 2: Nubank -->
-                        <div class="credit-card-glow nubank-card">
-                            <div class="card-chip"></div>
-                            <div class="card-brand">Nubank</div>
-                            <div class="card-number">•••• •••• •••• 0819</div>
-                            <div class="card-info-row">
-                                <div class="card-info-col">
-                                    <span class="card-info-label">FATURA ATUAL</span>
-                                    <h4 class="card-info-value" id="nubank-card-bill">R$ 0,00</h4>
-                                </div>
-                                <div class="card-info-col text-right">
-                                    <span class="card-info-label">VENCIMENTO</span>
-                                    <span class="card-info-value">Dia 15</span>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="cards-display-grid" id="cards-display-grid">
+                        <!-- Rendered dynamically -->
                     </div>
 
                     <!-- Split Container for Installments and Recurrent purchases -->
@@ -493,8 +473,91 @@
                     </div>
                 </section>
 
+                <!-- 5. PERFIL E CONFIGURAÇÕES -->
+                <section class="tab-panel" id="tab-profile">
+                    <div class="profile-layout">
+                        <div class="profile-card">
+                            <div class="section-title-bar profile-gradient">
+                                <h3>Perfil</h3>
+                            </div>
+                            <form id="profile-form">
+                                <div class="form-group">
+                                    <label for="profile-name">Nome</label>
+                                    <input type="text" id="profile-name" maxlength="80" placeholder="Seu nome">
+                                </div>
+                                <div class="form-group">
+                                    <label for="profile-nickname">Apelido no cabeçalho</label>
+                                    <input type="text" id="profile-nickname" maxlength="5" placeholder="Até 5 letras">
+                                </div>
+                                <p class="subtitle">O apelido aparece no topo do app no lugar do e-mail.</p>
+                                <button type="submit" class="btn btn-primary">Salvar Perfil</button>
+                            </form>
+                        </div>
+
+                        <div class="profile-card">
+                            <div class="section-title-bar fixed-gradient">
+                                <h3>Conta</h3>
+                            </div>
+                            <div class="profile-account-row">
+                                <span>E-mail</span>
+                                <strong id="profile-email">-</strong>
+                            </div>
+                            <div class="profile-account-row">
+                                <span>Cartões cadastrados</span>
+                                <strong id="profile-card-count">0</strong>
+                            </div>
+                            <div class="profile-account-row">
+                                <span>Compras cadastradas</span>
+                                <strong id="profile-purchase-count">0</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             </div>
         </main>
+    </div>
+
+    <!-- MODAL: ADD CARTÃO -->
+    <div class="modal-backdrop" id="modal-card">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Novo Cartão</h3>
+                <button class="close-modal-btn" data-modal="modal-card">&times;</button>
+            </div>
+            <form id="card-form">
+                <div class="form-group">
+                    <label for="c-name">Nome do Cartão</label>
+                    <input type="text" id="c-name" required maxlength="24" placeholder="Ex: Itaú, Nubank, Inter">
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="c-last4">Final</label>
+                        <input type="text" id="c-last4" maxlength="4" inputmode="numeric" placeholder="1234">
+                    </div>
+                    <div class="form-group col">
+                        <label for="c-due-day">Vencimento</label>
+                        <input type="number" id="c-due-day" min="1" max="31" required placeholder="10">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="c-color">Cor</label>
+                    <select id="c-color">
+                        <option value="#4f46e5">Índigo</option>
+                        <option value="#e14e1d">Laranja</option>
+                        <option value="#e11d48">Vermelho / Santander</option>
+                        <option value="#7c3aed">Roxo</option>
+                        <option value="#059669">Verde</option>
+                        <option value="#0f766e">Teal</option>
+                        <option value="#db2777">Rosa</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" data-modal="modal-card">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- MODAL: ADD COMPRA PARCELADA -->
@@ -516,10 +579,7 @@
                     </div>
                     <div class="form-group col">
                         <label for="p-card">Cartão</label>
-                        <select id="p-card" required>
-                            <option value="Itaú">Itaú</option>
-                            <option value="Nubank">Nubank</option>
-                        </select>
+                        <select id="p-card" required></select>
                     </div>
                 </div>
                 <div class="form-row">
@@ -537,16 +597,8 @@
                 </div>
                 <div class="form-group">
                     <label for="p-category">Categoria</label>
-                    <select id="p-category" required>
-                        <option value="Roupa">Roupa</option>
-                        <option value="Presentes">Presentes</option>
-                        <option value="Extras">Extras</option>
-                        <option value="Casa">Casa</option>
-                        <option value="Tecnologia">Tecnologia</option>
-                        <option value="Transporte">Transporte</option>
-                        <option value="Alimentação">Alimentação</option>
-                        <option value="Lazer">Lazer</option>
-                    </select>
+                    <input type="text" id="p-category" list="purchase-categories-list" required placeholder="Ex: Mercado, Saúde, Lazer">
+                    <datalist id="purchase-categories-list"></datalist>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" data-modal="modal-purchase">Cancelar</button>
@@ -584,11 +636,7 @@
                 <div class="form-row">
                     <div class="form-group col">
                         <label for="r-card">Cartão de Cobrança</label>
-                        <select id="r-card" required>
-                            <option value="Itaú">Itaú</option>
-                            <option value="Nubank">Nubank</option>
-                            <option value="Nenhum (Débito/PIX)">Nenhum (Débito/PIX)</option>
-                        </select>
+                        <select id="r-card" required></select>
                     </div>
                     <div class="form-group col">
                         <label for="r-color">Cor Temática</label>
@@ -696,9 +744,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=auth-users"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="firebase-config.js?v=categories-installments"></script>
 
     <!-- Script Link -->
-    <script src="app.js?v=auth-users"></script>
+    <script src="app.js?v=categories-installments"></script>
 </body>
 </html>

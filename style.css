@@ -367,6 +367,10 @@ body {
     font-size: 14px;
 }
 
+.user-menu .btn svg {
+    flex-shrink: 0;
+}
+
 /* Month Selector */
 .month-selector-container {
     display: flex;
@@ -1042,10 +1046,30 @@ body {
 }
 
 /* 2. CARTÕES E COMPRAS PANEL */
+.cards-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
 .cards-display-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 340px));
     gap: 24px;
+}
+
+.empty-state-card,
+.profile-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: var(--card-shadow);
+}
+
+.empty-state-card {
+    grid-column: 1 / -1;
 }
 
 .credit-card-glow {
@@ -1060,6 +1084,15 @@ body {
     box-shadow: var(--card-shadow);
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.card-delete-btn {
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    background-color: rgba(0, 0, 0, 0.28);
+    border-color: rgba(255, 255, 255, 0.22);
     color: white;
 }
 
@@ -1550,6 +1583,35 @@ body {
 .section-title-bar.income-gradient { background: linear-gradient(135deg, var(--success), #059669); }
 .section-title-bar.fixed-gradient { background: linear-gradient(135deg, var(--primary), #4338ca); }
 .section-title-bar.variable-gradient { background: linear-gradient(135deg, var(--warning), #d97706); }
+.section-title-bar.profile-gradient { background: linear-gradient(135deg, #0f766e, #4f46e5); }
+
+.profile-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+    gap: 24px;
+}
+
+.profile-account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.profile-account-row:last-child {
+    border-bottom: none;
+}
+
+.profile-account-row span {
+    color: var(--text-secondary);
+}
+
+.profile-account-row strong {
+    text-align: right;
+    overflow-wrap: anywhere;
+}
 
 /* Planning table */
 .planning-table {
@@ -1862,6 +1924,17 @@ input:focus, select:focus {
         overflow: hidden;
     }
 
+    .user-menu {
+        margin-left: auto;
+        padding-left: 8px;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .user-menu span {
+        max-width: 64px;
+    }
+
     .utilities .btn {
         padding: 10px;
         width: 40px;
@@ -1906,7 +1979,7 @@ input:focus, select:focus {
 
     .sidebar-menu {
         flex-direction: row;
-        gap: 6px;
+        gap: 4px;
     }
 
     .nav-item {
@@ -1918,7 +1991,7 @@ input:focus, select:focus {
         min-height: 58px;
         padding: 8px 4px;
         border-radius: 14px;
-        font-size: 11px;
+        font-size: 10px;
         text-align: center;
     }
 
@@ -1945,7 +2018,8 @@ input:focus, select:focus {
     .kpi-grid,
     .savings-tracker-row,
     .charts-row,
-    .purchases-split {
+    .purchases-split,
+    .profile-layout {
         grid-template-columns: 1fr;
         gap: 16px;
     }
@@ -1967,6 +2041,7 @@ input:focus, select:focus {
         gap: 16px;
     }
 
+    .cards-toolbar,
     .p2p-header-section,
     .planning-header-row,
     .list-header {
@@ -1975,6 +2050,7 @@ input:focus, select:focus {
         gap: 12px;
     }
 
+    .cards-toolbar .btn,
     .p2p-header-section .btn,
     .planning-header-row .btn,
     .list-header .btn {
@@ -2012,6 +2088,11 @@ input:focus, select:focus {
         overflow-y: auto;
         border-radius: 20px;
         padding: 22px;
+    }
+
+    .table-responsive {
+        max-width: 100%;
+        overflow-x: auto;
     }
 }
 
@@ -2113,7 +2194,24 @@ input:focus, select:focus {
 
     .custom-table,
     .planning-table {
-        min-width: 520px;
+        min-width: 460px;
+    }
+
+    .custom-table th:nth-child(1),
+    .custom-table td:nth-child(1),
+    .custom-table th:nth-child(3),
+    .custom-table td:nth-child(3),
+    .custom-table th:nth-child(6),
+    .custom-table td:nth-child(6) {
+        display: none;
+    }
+
+    .custom-table {
+        min-width: 360px;
+    }
+
+    .planning-table {
+        min-width: 360px;
     }
 
     .custom-table th,

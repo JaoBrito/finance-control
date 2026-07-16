@@ -4,7 +4,7 @@
 
 // Global state variables
 let state = {};
-let activeMonth = "2026-08"; // Default starting month
+let activeMonth = "";
 let activeTab = "dashboard";
 let activeP2PType = "receber"; // P2P view switcher
 
@@ -16,6 +16,7 @@ let categoryChartInstance = null;
 let firebasePersistence = {
     enabled: false,
     docRef: null,
+    userDocRef: null,
     saveTimer: null,
     user: null
 };
@@ -249,6 +250,11 @@ function formatMonthYear(monthStr) {
     return `${monthsName[monthIndex]}/${year}`;
 }
 
+function getInitialMonth() {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
 // Convert absolute date to month string "YYYY-MM"
 function getMonthStrFromDate(dateStr) {
     return dateStr.substring(0, 7);
@@ -265,6 +271,71 @@ function addMonths(monthStr, monthsToAdd) {
     month = (month % 12 + 12) % 12;
 
     return `${year}-${String(month + 1).padStart(2, '0')}`;
+}
+
+function getEmptyState() {
+    const month = activeMonth || getInitialMonth();
+    return {
+        months: [month],
+        cards: [],
+        purchases: [],
+        subscriptions: [],
+        p2pAgreements: [],
+        categories: ["Roupa", "Presentes", "Extras", "Casa", "Tecnologia", "Transporte", "Alimentação", "Lazer"],
+        planning: {
+            [month]: { income: [], fixed: [], variable: [] }
+        },
+        comments: {},
+        profile: { name: "", nickname: "" }
+    };
+}
+
+function getCardByIdOrName(cardValue) {
+    return (state.cards || []).find(card => card.id === cardValue || card.name === cardValue);
+}
+
+function getCardDisplayName(cardValue) {
+    const card = getCardByIdOrName(cardValue);
+    return card ? card.name : cardValue;
+}
+
+function getCardBillEntries(targetMonth) {
+    return (state.cards || []).map(card => ({
+        card,
+        total: calculateCardBill(card.id, targetMonth)
+    }));
+}
+
+function ensurePlanningMonth(month) {
+    if (!state.months.includes(month)) {
+        state.months.push(month);
+        state.months.sort();
+    }
+
+    if (!state.planning[month]) {
+        state.planning[month] = { income: [], fixed: [], variable: [] };
+    }
+}
+
+function ensureInstallmentMonths(date, installments) {
+    const firstMonth = getMonthStrFromDate(date);
+    for (let i = 0; i < installments; i++) {
+        ensurePlanningMonth(addMonths(firstMonth, i));
+    }
+}
+
+function addCategoryIfMissing(category) {
+    const cleanCategory = String(category || "").trim();
+    if (!cleanCategory) return "Extras";
+
+    state.categories = state.categories || [];
+    const exists = state.categories.some(item => normalizeKey(item) === normalizeKey(cleanCategory));
+    if (!exists) {
+        state.categories.push(cleanCategory);
+        state.categories.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    }
+
+    return cleanCategory;
 }
 
 // Check if a purchase installment falls in a target month
@@ -300,7 +371,7 @@ function calculateCardBill(cardName, targetMonth) {
 
     // 1. Installments
     state.purchases.forEach(p => {
-        if (p.card === cardName) {
+        if (p.card === cardName || getCardDisplayName(p.card) === cardName) {
             const instInfo = getInstallmentInfo(p, targetMonth);
             if (instInfo.active) {
                 total += p.totalValue / p.installments;
@@ -310,7 +381,7 @@ function calculateCardBill(cardName, targetMonth) {
 
     // 2. Subscriptions
     state.subscriptions.forEach(s => {
-        if (s.card === cardName) {
+        if (s.card === cardName || getCardDisplayName(s.card) === cardName) {
             total += s.value;
         }
     });
@@ -320,8 +391,8 @@ function calculateCardBill(cardName, targetMonth) {
 
 // Calculate the full financial status of the active month
 function calculateMonthStatus(targetMonth) {
-    const itauBill = calculateCardBill("Itaú", targetMonth);
-    const nubankBill = calculateCardBill("Nubank", targetMonth);
+    const cardBills = getCardBillEntries(targetMonth);
+    const totalCards = cardBills.reduce((sum, entry) => sum + entry.total, 0);
 
     // Get plan details
     const plan = state.planning[targetMonth] || { income: [], fixed: [], variable: [] };
@@ -341,7 +412,7 @@ function calculateMonthStatus(targetMonth) {
     });
 
     // Add dynamically calculated credit cards
-    expensesSum += itauBill + nubankBill;
+    expensesSum += totalCards;
 
     // P2P Contributions (if affectBudget is true)
     state.p2pAgreements.forEach(agreement => {
@@ -370,10 +441,9 @@ function calculateMonthStatus(targetMonth) {
     return {
         incomeSum,
         expensesSum,
-        itauBill,
-        nubankBill,
+        cardBills,
         netBalance,
-        totalCards: itauBill + nubankBill
+        totalCards
     };
 }
 
@@ -399,6 +469,7 @@ function renderKPIs() {
     document.getElementById("kpi-income").innerText = formatCurrency(stats.incomeSum);
     document.getElementById("kpi-expenses").innerText = formatCurrency(stats.expensesSum);
     document.getElementById("kpi-cards").innerText = formatCurrency(stats.totalCards);
+    document.getElementById("kpi-cards-sub").innerText = `${state.cards.length} cartão(ões) cadastrados`;
 
     const balanceEl = document.getElementById("kpi-balance");
     balanceEl.innerText = formatCurrency(stats.netBalance);
@@ -418,10 +489,6 @@ function renderKPIs() {
     percent = Math.max(0, Math.min(100, percent));
     progressEl.style.width = `${percent}%`;
 
-    // Render Cards page balances
-    document.getElementById("itau-card-bill").innerText = formatCurrency(stats.itauBill);
-    document.getElementById("nubank-card-bill").innerText = formatCurrency(stats.nubankBill);
-
     // Update Savings indicators on Dashboard
     const plan = state.planning[activeMonth] || { fixed: [] };
     const lifeSavings = plan.fixed.find(f => f.description.toLowerCase().includes("poupança de vida"))?.value || 0;
@@ -440,6 +507,123 @@ function renderKPIs() {
 
     lifeProgress.style.width = `${lifePercent}%`;
     travelProgress.style.width = `${travelPercent}%`;
+}
+
+function renderCards() {
+    const container = document.getElementById("cards-display-grid");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!state.cards.length) {
+        container.innerHTML = `
+            <div class="empty-state-card">
+                <h3>Nenhum cartão cadastrado</h3>
+                <p class="subtitle">Adicione um cartão para lançar compras parceladas ou assinaturas.</p>
+            </div>
+        `;
+        return;
+    }
+
+    getCardBillEntries(activeMonth).forEach(({ card, total }) => {
+        const cardEl = document.createElement("div");
+        cardEl.className = "credit-card-glow";
+        cardEl.style.background = `linear-gradient(135deg, ${card.color || "#4f46e5"} 0%, #111827 100%)`;
+        cardEl.innerHTML = `
+            <div class="card-chip"></div>
+            <div class="card-brand">${card.name}</div>
+            <div class="card-number">•••• •••• •••• ${card.last4 || "0000"}</div>
+            <div class="card-info-row">
+                <div class="card-info-col">
+                    <span class="card-info-label">FATURA ATUAL</span>
+                    <h4 class="card-info-value">${formatCurrency(total)}</h4>
+                </div>
+                <div class="card-info-col text-right">
+                    <span class="card-info-label">VENCIMENTO</span>
+                    <span class="card-info-value">Dia ${card.dueDay || "-"}</span>
+                </div>
+            </div>
+            <button class="btn-icon-danger card-delete-btn" data-id="${card.id}" title="Excluir cartão">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+        `;
+        container.appendChild(cardEl);
+    });
+
+    document.querySelectorAll(".card-delete-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+            const id = this.getAttribute("data-id");
+            if (confirm("Remover este cartão? Compras e assinaturas ligadas a ele permanecerão no histórico.")) {
+                deleteCard(id);
+            }
+        });
+    });
+}
+
+function renderProfile() {
+    const profile = state.profile || { name: "", nickname: "" };
+    const displayName = profile.nickname || firebasePersistence.user?.email || "Conta";
+    const headerName = document.getElementById("current-user-email");
+    if (headerName) headerName.innerText = displayName;
+
+    const nameInput = document.getElementById("profile-name");
+    const nicknameInput = document.getElementById("profile-nickname");
+    if (nameInput && document.activeElement !== nameInput) nameInput.value = profile.name || "";
+    if (nicknameInput && document.activeElement !== nicknameInput) nicknameInput.value = profile.nickname || "";
+
+    const emailEl = document.getElementById("profile-email");
+    const cardCountEl = document.getElementById("profile-card-count");
+    const purchaseCountEl = document.getElementById("profile-purchase-count");
+    if (emailEl) emailEl.innerText = firebasePersistence.user?.email || "-";
+    if (cardCountEl) cardCountEl.innerText = state.cards.length;
+    if (purchaseCountEl) purchaseCountEl.innerText = state.purchases.length;
+}
+
+function populateCardSelectors() {
+    const selects = [document.getElementById("p-card"), document.getElementById("r-card")].filter(Boolean);
+
+    selects.forEach(select => {
+        const previous = select.value;
+        select.innerHTML = "";
+
+        if (!state.cards.length) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.innerText = "Cadastre um cartão primeiro";
+            opt.disabled = true;
+            opt.selected = true;
+            select.appendChild(opt);
+            return;
+        }
+
+        state.cards.forEach(card => {
+            const opt = document.createElement("option");
+            opt.value = card.id;
+            opt.innerText = card.name;
+            if (previous === card.id || previous === card.name) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        if (select.id === "r-card") {
+            const debitOpt = document.createElement("option");
+            debitOpt.value = "Nenhum (Débito/PIX)";
+            debitOpt.innerText = "Nenhum (Débito/PIX)";
+            if (previous === debitOpt.value) debitOpt.selected = true;
+            select.appendChild(debitOpt);
+        }
+    });
+}
+
+function populateCategoryOptions() {
+    const list = document.getElementById("purchase-categories-list");
+    if (!list) return;
+
+    list.innerHTML = "";
+    (state.categories || []).forEach(category => {
+        const option = document.createElement("option");
+        option.value = category;
+        list.appendChild(option);
+    });
 }
 
 // Render modern charts
@@ -525,7 +709,7 @@ function renderCharts() {
 
     // Add planning items (except Cards because they are calculated separately and we categorize their inner contents!)
     activePlan.fixed.forEach(item => {
-        if (!item.description.includes("Itaú") && !item.description.includes("Nubank")) {
+        if (!item.description.toLowerCase().includes("cartão")) {
             const cat = item.description;
             categoriesMap[cat] = (categoriesMap[cat] || 0) + item.value;
         }
@@ -645,7 +829,7 @@ function renderInstallmentsTable() {
         const dateParts = p.date.split('-');
         const dateFormatted = `${dateParts[2]}/${dateParts[1]}/${dateParts[0].substring(2)}`;
 
-        const cardBadgeClass = p.card === "Itaú" ? "table-badge orange" : "table-badge purple";
+        const cardBadgeClass = "table-badge default";
         const categorias = {
             "Roupa": "roupa",
             "Alimentação": "alimentacao",
@@ -663,7 +847,7 @@ function renderInstallmentsTable() {
             <td>${dateFormatted}</td>
             <td style="font-weight: 500;">${p.description}</td>
             <td><span class="table-badge ${categoriaClasse}">${p.category}</span></td>
-            <td><span class="${cardBadgeClass}">${p.card}</span></td>
+            <td><span class="${cardBadgeClass}">${getCardDisplayName(p.card)}</span></td>
             <td style="font-family: 'JetBrains Mono', monospace; font-weight: 500;">${item.installmentIndex}/${p.installments}</td>
             <td class="cell-amount">${formatCurrency(p.totalValue)}</td>
             <td class="cell-amount" style="color: var(--danger);">${formatCurrency(item.installmentValue)}</td>
@@ -697,7 +881,7 @@ function renderRecurrentPurchases() {
 
     state.subscriptions.forEach(s => {
         total += s.value;
-        const cardClass = s.card === "Itaú" ? "table-badge orange" : (s.card === "Nubank" ? "table-badge purple" : "table-badge default");
+        const cardClass = "table-badge default";
 
         const card = document.createElement("div");
         card.className = "recurrent-card";
@@ -706,7 +890,7 @@ function renderRecurrentPurchases() {
                 <div class="recurrent-icon-dot" style="background-color: ${s.color};"></div>
                 <div>
                     <span class="recurrent-name">${s.name}</span>
-                    <div class="recurrent-day">Dia ${s.day} • <span class="${cardClass}" style="padding: 1px 4px; font-size: 10px;">${s.card}</span></div>
+                    <div class="recurrent-day">Dia ${s.day} • <span class="${cardClass}" style="padding: 1px 4px; font-size: 10px;">${getCardDisplayName(s.card)}</span></div>
                 </div>
             </div>
             <div class="recurrent-card-amount">
@@ -871,25 +1055,17 @@ function renderPlanningTables() {
 
         // Render credit cards at the top of Fixed expenses if enabled
         if (showCards) {
-            const itauTr = document.createElement("tr");
-            itauTr.innerHTML = `
-                <td style="font-weight: 500;">💳 Cartão Itaú <span style="font-size: 11px; color: var(--text-muted);">🔗 automático</span></td>
-                <td class="text-right" style="color: var(--danger); font-family: 'JetBrains Mono', monospace; font-weight: 700;">
-                    ${formatCurrency(stats.itauBill)}
-                </td>
-                <td class="text-center" style="color: var(--text-muted); font-size: 12px;">Link</td>
-            `;
-            tbodyEl.appendChild(itauTr);
-
-            const nubankTr = document.createElement("tr");
-            nubankTr.innerHTML = `
-                <td style="font-weight: 500;">💳 Cartão Nubank <span style="font-size: 11px; color: var(--text-muted);">🔗 automático</span></td>
-                <td class="text-right" style="color: var(--danger); font-family: 'JetBrains Mono', monospace; font-weight: 700;">
-                    ${formatCurrency(stats.nubankBill)}
-                </td>
-                <td class="text-center" style="color: var(--text-muted); font-size: 12px;">Link</td>
-            `;
-            tbodyEl.appendChild(nubankTr);
+            stats.cardBills.forEach(({ card, total }) => {
+                const cardTr = document.createElement("tr");
+                cardTr.innerHTML = `
+                    <td style="font-weight: 500;">💳 Cartão ${card.name} <span style="font-size: 11px; color: var(--text-muted);">🔗 automático</span></td>
+                    <td class="text-right" style="color: var(--danger); font-family: 'JetBrains Mono', monospace; font-weight: 700;">
+                        ${formatCurrency(total)}
+                    </td>
+                    <td class="text-center" style="color: var(--text-muted); font-size: 12px;">Link</td>
+                `;
+                tbodyEl.appendChild(cardTr);
+            });
         }
 
         items.forEach(item => {
@@ -1016,16 +1192,39 @@ function formatCurrency(val) {
 // Add a purchase parcelled
 function addPurchase(desc, date, card, totalValue, installments, category) {
     const newId = "p_" + Date.now();
+    const installmentCount = parseInt(installments, 10);
+    const purchaseCategory = addCategoryIfMissing(category);
+    ensureInstallmentMonths(date, installmentCount);
+
     state.purchases.push({
         id: newId,
         description: desc,
         date: date,
         card: card,
         totalValue: parseFloat(totalValue),
-        installments: parseInt(installments, 10),
-        category: category
+        installments: installmentCount,
+        category: purchaseCategory
     });
 
+    saveState();
+    refreshAllUI();
+}
+
+function addCard(name, last4, dueDay, color) {
+    state.cards.push({
+        id: "card_" + Date.now(),
+        name: name.trim(),
+        last4: String(last4 || "").replace(/\D/g, "").slice(-4),
+        dueDay: parseInt(dueDay, 10),
+        color
+    });
+
+    saveState();
+    refreshAllUI();
+}
+
+function deleteCard(id) {
+    state.cards = state.cards.filter(card => card.id !== id);
     saveState();
     refreshAllUI();
 }
@@ -1034,6 +1233,17 @@ function addPurchase(desc, date, card, totalValue, installments, category) {
 function deletePurchase(id) {
     state.purchases = state.purchases.filter(p => p.id !== id);
     saveState();
+    refreshAllUI();
+}
+
+function updateProfile(name, nickname) {
+    state.profile = {
+        name: (name || "").trim(),
+        nickname: (nickname || "").trim().slice(0, 5)
+    };
+
+    saveState();
+    syncUserProfile();
     refreshAllUI();
 }
 
@@ -1176,10 +1386,14 @@ function deletePlanningRow(id) {
 function refreshAllUI() {
     renderMonthCarousel();
     renderKPIs();
+    renderCards();
     renderInstallmentsTable();
     renderRecurrentPurchases();
     renderP2PAgreements();
     renderPlanningTables();
+    renderProfile();
+    populateCardSelectors();
+    populateCategoryOptions();
     updatePendingBadges();
     updateCommentBadges();
 
@@ -1188,7 +1402,7 @@ function refreshAllUI() {
 }
 
 function getDefaultState() {
-    const defaultState = JSON.parse(JSON.stringify(DEFAULT_MOCK_DATA));
+    const defaultState = getEmptyState();
     defaultState.comments = defaultState.comments || {};
     return defaultState;
 }
@@ -1198,12 +1412,38 @@ function normalizeState(nextState) {
         return getDefaultState();
     }
 
-    if (!nextState.months) nextState.months = DEFAULT_MOCK_DATA.months;
+    if (!nextState.months || !nextState.months.length) nextState.months = [activeMonth || getInitialMonth()];
+    if (!nextState.cards) nextState.cards = [];
     if (!nextState.purchases) nextState.purchases = [];
     if (!nextState.subscriptions) nextState.subscriptions = [];
     if (!nextState.p2pAgreements) nextState.p2pAgreements = [];
+    if (!nextState.categories) {
+        nextState.categories = ["Roupa", "Presentes", "Extras", "Casa", "Tecnologia", "Transporte", "Alimentação", "Lazer"];
+    }
     if (!nextState.planning) nextState.planning = {};
+    nextState.purchases.forEach(purchase => {
+        if (purchase.category && !nextState.categories.some(item => normalizeKey(item) === normalizeKey(purchase.category))) {
+            nextState.categories.push(purchase.category);
+        }
+
+        const installments = parseInt(purchase.installments, 10) || 1;
+        const purchaseMonth = getMonthStrFromDate(purchase.date || `${activeMonth}-01`);
+        for (let i = 0; i < installments; i++) {
+            const installmentMonth = addMonths(purchaseMonth, i);
+            if (!nextState.months.includes(installmentMonth)) {
+                nextState.months.push(installmentMonth);
+            }
+        }
+    });
+    nextState.months.sort();
+    nextState.categories.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    nextState.months.forEach(month => {
+        if (!nextState.planning[month]) {
+            nextState.planning[month] = { income: [], fixed: [], variable: [] };
+        }
+    });
     nextState.comments = nextState.comments || {};
+    nextState.profile = nextState.profile || { name: "", nickname: "" };
 
     return nextState;
 }
@@ -1254,10 +1494,12 @@ async function setupFirebasePersistence() {
         if (!user) {
             firebasePersistence.enabled = false;
             firebasePersistence.docRef = null;
+            firebasePersistence.userDocRef = null;
             firebasePersistence.user = null;
             return false;
         }
 
+        firebasePersistence.userDocRef = firebase.firestore().collection("users").doc(user.uid);
         firebasePersistence.docRef = firebase
             .firestore()
             .collection("users")
@@ -1266,12 +1508,14 @@ async function setupFirebasePersistence() {
             .doc("state");
         firebasePersistence.enabled = true;
         firebasePersistence.user = user;
+        await syncUserProfile();
 
         return true;
     } catch (e) {
         console.warn("Firebase indisponivel. Usando localStorage.", e);
         firebasePersistence.enabled = false;
         firebasePersistence.docRef = null;
+        firebasePersistence.userDocRef = null;
         firebasePersistence.user = null;
         return false;
     }
@@ -1294,7 +1538,10 @@ async function loadPersistedState() {
 
         const initialState = getDefaultState();
         localStorage.setItem(getLocalStateKey(), JSON.stringify(initialState));
-        saveState();
+        await firebasePersistence.docRef.set({
+            state: initialState,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
         return initialState;
     } catch (e) {
         console.warn("Nao foi possivel carregar dados do Firestore. Usando localStorage.", e);
@@ -1319,6 +1566,24 @@ function saveState() {
             console.warn("Nao foi possivel salvar no Firestore. Dados locais preservados.", e);
         });
     }, 400);
+}
+
+async function syncUserProfile() {
+    if (!firebasePersistence.user || !firebasePersistence.userDocRef) {
+        return;
+    }
+
+    const profile = state.profile || { name: "", nickname: "" };
+    try {
+        await firebasePersistence.userDocRef.set({
+            email: firebasePersistence.user.email || "",
+            name: profile.name || "",
+            nickname: profile.nickname || "",
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        console.warn("Nao foi possivel atualizar o perfil do usuario no Firestore.", e);
+    }
 }
 
 function initializeFirebaseApp() {
@@ -1404,7 +1669,7 @@ function showAuthenticatedApp(user) {
     firebasePersistence.user = user;
     const userEmailEl = document.getElementById("current-user-email");
     if (userEmailEl) {
-        userEmailEl.innerText = user.email || "Conta conectada";
+        userEmailEl.innerText = state.profile?.nickname || user.email || "Conta conectada";
     }
 
     document.body.classList.remove("auth-pending");
@@ -1414,6 +1679,7 @@ function showAuthenticatedApp(user) {
 function showLoginScreen() {
     firebasePersistence.enabled = false;
     firebasePersistence.docRef = null;
+    firebasePersistence.userDocRef = null;
     firebasePersistence.user = null;
     document.body.classList.remove("auth-ready");
     document.body.classList.add("auth-pending");
@@ -1459,6 +1725,10 @@ async function init() {
     }
 
     state = await loadPersistedState();
+    if (!activeMonth || !state.months.includes(activeMonth)) {
+        activeMonth = state.months[0] || getInitialMonth();
+    }
+    await syncUserProfile();
 
     // Populate agreement start month selectors in HTML modal
     populateStartMonthSelectors();
@@ -1542,6 +1812,8 @@ function setupTabListeners() {
             } else if (tabId === "dashboard") {
                 renderKPIs();
                 renderCharts();
+            } else if (tabId === "profile") {
+                renderProfile();
             }
         });
     });
@@ -1567,16 +1839,7 @@ function setupCarouselListeners() {
             const newMonth = addMonths(activeMonth, -1);
             state.months.unshift(newMonth);
             // Create default planner object for it
-            state.planning[newMonth] = {
-                income: [{ id: "pi1_" + Date.now(), description: "Salário", value: 5000.00 }],
-                fixed: [
-                    { id: "pf1_" + Date.now(), description: "Transporte", value: 90.00 },
-                    { id: "pf2_" + Date.now(), description: "MEI", value: 86.05 },
-                    { id: "pf3_" + Date.now(), description: "Telefone", value: 41.89 },
-                    { id: "pf4_" + Date.now(), description: "Gastos livres mensais", value: 1500.00 }
-                ],
-                variable: []
-            };
+            state.planning[newMonth] = { income: [], fixed: [], variable: [] };
             activeMonth = newMonth;
             saveState();
         }
@@ -1592,16 +1855,7 @@ function setupCarouselListeners() {
             const newMonth = addMonths(activeMonth, 1);
             state.months.push(newMonth);
             // Copy default structure from last month
-            state.planning[newMonth] = {
-                income: [{ id: "pi1_" + Date.now(), description: "Salário", value: 5000.00 }],
-                fixed: [
-                    { id: "pf1_" + Date.now(), description: "Transporte", value: 90.00 },
-                    { id: "pf2_" + Date.now(), description: "MEI", value: 86.05 },
-                    { id: "pf3_" + Date.now(), description: "Telefone", value: 41.89 },
-                    { id: "pf4_" + Date.now(), description: "Gastos livres mensais", value: 1500.00 }
-                ],
-                variable: []
-            };
+            state.planning[newMonth] = { income: [], fixed: [], variable: [] };
             activeMonth = newMonth;
             saveState();
         }
@@ -1611,6 +1865,7 @@ function setupCarouselListeners() {
 
 function setupModalListeners() {
     // Open Modals
+    document.getElementById("add-card-btn").addEventListener("click", () => openModal("modal-card"));
     document.getElementById("add-purchase-btn").addEventListener("click", () => openModal("modal-purchase"));
     document.getElementById("add-recurring-btn").addEventListener("click", () => openModal("modal-recurring"));
     document.getElementById("add-agreement-btn").addEventListener("click", () => openModal("modal-agreement"));
@@ -1627,10 +1882,25 @@ function setupModalListeners() {
     });
 
     // Form Submissions
+    document.getElementById("card-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        addCard(
+            document.getElementById("c-name").value,
+            document.getElementById("c-last4").value,
+            document.getElementById("c-due-day").value,
+            document.getElementById("c-color").value
+        );
+        closeModal("modal-card");
+        this.reset();
+    });
 
     // 1. Purchase
     document.getElementById("purchase-form").addEventListener("submit", function (e) {
         e.preventDefault();
+        if (!state.cards.length) {
+            alert("Cadastre um cartão antes de adicionar uma compra.");
+            return;
+        }
         const desc = document.getElementById("p-description").value;
         const date = document.getElementById("p-date").value;
         const card = document.getElementById("p-card").value;
@@ -1646,6 +1916,10 @@ function setupModalListeners() {
     // 2. Subscription
     document.getElementById("recurring-form").addEventListener("submit", function (e) {
         e.preventDefault();
+        if (!state.cards.length) {
+            alert("Cadastre um cartão antes de adicionar uma assinatura.");
+            return;
+        }
         const name = document.getElementById("r-name").value;
         const val = document.getElementById("r-value").value;
         const day = document.getElementById("r-day").value;
@@ -1682,6 +1956,15 @@ function setupModalListeners() {
         closeModal("modal-planning-row");
         this.reset();
     });
+
+    document.getElementById("profile-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        updateProfile(
+            document.getElementById("profile-name").value,
+            document.getElementById("profile-nickname").value
+        );
+        alert("Perfil atualizado.");
+    });
 }
 
 function openModal(modalId) {
@@ -1691,7 +1974,13 @@ function openModal(modalId) {
 
     // Pre-fill today's date on purchase form if empty
     if (modalId === "modal-purchase") {
-        document.getElementById("p-date").value = new Date().toISOString().substring(0, 10);
+        populateCardSelectors();
+        populateCategoryOptions();
+        document.getElementById("p-date").value = `${activeMonth}-01`;
+    }
+
+    if (modalId === "modal-recurring") {
+        populateCardSelectors();
     }
 }
 
@@ -1699,6 +1988,155 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     modal.classList.remove("active");
     setTimeout(() => modal.style.display = "none", 300);
+}
+
+function normalizeKey(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
+function getRowValue(row, keys) {
+    const normalizedMap = {};
+    Object.keys(row).forEach(key => {
+        normalizedMap[normalizeKey(key)] = row[key];
+    });
+
+    for (const key of keys) {
+        const value = normalizedMap[normalizeKey(key)];
+        if (value !== undefined && value !== null && value !== "") {
+            return value;
+        }
+    }
+
+    return "";
+}
+
+function parseImportedNumber(value) {
+    if (typeof value === "number") return value;
+    return parseFloat(String(value || "0").replace(/\./g, "").replace(",", ".")) || 0;
+}
+
+function parseImportedDate(value) {
+    if (value instanceof Date) return value.toISOString().substring(0, 10);
+    const raw = String(value || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.substring(0, 10);
+    const br = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (br) {
+        const year = br[3].length === 2 ? `20${br[3]}` : br[3];
+        return `${year}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+    }
+    return `${activeMonth}-01`;
+}
+
+function getOrCreateImportedCard(cardName) {
+    const name = String(cardName || "").trim();
+    if (!name || name === "Nenhum (Débito/PIX)") return name;
+
+    const existing = state.cards.find(card => normalizeKey(card.name) === normalizeKey(name));
+    if (existing) return existing.id;
+
+    const newCard = {
+        id: "card_import_" + Date.now() + "_" + state.cards.length,
+        name,
+        last4: "0000",
+        dueDay: 10,
+        color: "#4f46e5"
+    };
+    state.cards.push(newCard);
+    return newCard.id;
+}
+
+function importRowsFromExcel(workbook) {
+    let imported = 0;
+
+    workbook.SheetNames.forEach(sheetName => {
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+        if (!rows.length) return;
+
+        const sheetKey = normalizeKey(sheetName);
+
+        if (sheetKey.includes("cart") || sheetKey.includes("card")) {
+            rows.forEach(row => {
+                const name = getRowValue(row, ["nome", "cartao", "card", "name"]);
+                if (!name) return;
+                const existing = state.cards.find(card => normalizeKey(card.name) === normalizeKey(name));
+                if (existing) return;
+                state.cards.push({
+                    id: "card_import_" + Date.now() + "_" + imported,
+                    name: String(name).trim(),
+                    last4: String(getRowValue(row, ["final", "last4", "ultimos 4"])).replace(/\D/g, "").slice(-4) || "0000",
+                    dueDay: parseInt(getRowValue(row, ["vencimento", "dia", "dueDay"]), 10) || 10,
+                    color: String(getRowValue(row, ["cor", "color"])) || "#4f46e5"
+                });
+                imported++;
+            });
+            return;
+        }
+
+        if (sheetKey.includes("assin") || sheetKey.includes("recorr") || sheetKey.includes("subscription")) {
+            rows.forEach(row => {
+                const name = getRowValue(row, ["nome", "assinatura", "descricao", "description"]);
+                if (!name) return;
+                state.subscriptions.push({
+                    id: "s_import_" + Date.now() + "_" + imported,
+                    name: String(name).trim(),
+                    value: parseImportedNumber(getRowValue(row, ["valor", "valor mensal", "value"])),
+                    day: parseInt(getRowValue(row, ["dia", "vencimento", "day"]), 10) || 1,
+                    card: getOrCreateImportedCard(getRowValue(row, ["cartao", "card"])),
+                    color: String(getRowValue(row, ["cor", "color"])) || "#3b82f6"
+                });
+                imported++;
+            });
+            return;
+        }
+
+        if (sheetKey.includes("planej") || sheetKey.includes("orc") || sheetKey.includes("budget")) {
+            rows.forEach(row => {
+                const description = getRowValue(row, ["descricao", "descrição", "item", "categoria"]);
+                if (!description) return;
+                const month = String(getRowValue(row, ["mes", "mês", "month"]) || activeMonth).substring(0, 7);
+                const type = normalizeKey(getRowValue(row, ["tipo", "type"]));
+                const listName = type.includes("receita") || type.includes("income") ? "income" : (type.includes("vari") ? "variable" : "fixed");
+                if (!state.months.includes(month)) state.months.push(month);
+                if (!state.planning[month]) state.planning[month] = { income: [], fixed: [], variable: [] };
+                state.planning[month][listName].push({
+                    id: "pl_import_" + Date.now() + "_" + imported,
+                    description: String(description).trim(),
+                    value: parseImportedNumber(getRowValue(row, ["valor", "value"]))
+                });
+                imported++;
+            });
+            return;
+        }
+
+        rows.forEach(row => {
+            const description = getRowValue(row, ["compra", "descricao", "descrição", "description"]);
+            const total = getRowValue(row, ["valor total", "total", "valor", "value"]);
+            if (!description || !total) return;
+            const purchaseDate = parseImportedDate(getRowValue(row, ["data", "date"]));
+            const installmentCount = parseInt(getRowValue(row, ["parcelas", "installments"]), 10) || 1;
+            const category = addCategoryIfMissing(getRowValue(row, ["categoria", "category"]) || "Extras");
+            ensureInstallmentMonths(purchaseDate, installmentCount);
+            state.purchases.push({
+                id: "p_import_" + Date.now() + "_" + imported,
+                description: String(description).trim(),
+                date: purchaseDate,
+                card: getOrCreateImportedCard(getRowValue(row, ["cartao", "card"])),
+                totalValue: parseImportedNumber(total),
+                installments: installmentCount,
+                category
+            });
+            imported++;
+        });
+    });
+
+    state = normalizeState(state);
+    saveState();
+    refreshAllUI();
+    alert(`${imported} linha(s) importada(s) da planilha.`);
 }
 
 function setupUtilityListeners() {
@@ -1748,35 +2186,45 @@ function setupUtilityListeners() {
 
     fileInput.addEventListener("change", function () {
         const file = this.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                try {
+        if (!file) return;
+
+        const reader = new FileReader();
+        const extension = file.name.split(".").pop().toLowerCase();
+
+        reader.onload = function (e) {
+            try {
+                if (extension === "json") {
                     const importedState = JSON.parse(e.target.result);
                     if (importedState.months && importedState.planning) {
-                        state = importedState;
+                        state = normalizeState(importedState);
                         saveState();
                         refreshAllUI();
                         alert("Dados importados com sucesso!");
                     } else {
                         alert("Arquivo de backup inválido.");
                     }
-                } catch (err) {
-                    alert("Erro ao ler o arquivo JSON.");
+                    return;
                 }
-            };
-            reader.readAsText(file);
-        }
-    });
 
-    // Reset back to initial default spreadsheet mockup data
-    document.getElementById("reset-btn").addEventListener("click", () => {
-        if (confirm("Isto irá apagar todas as alterações e restaurar os dados originais contidos nas imagens das suas planilhas. Deseja prosseguir?")) {
-            state = JSON.parse(JSON.stringify(DEFAULT_MOCK_DATA));
-            state.comments = {};
-            activeMonth = "2026-08";
-            saveState();
-            refreshAllUI();
+                if (!window.XLSX) {
+                    alert("Biblioteca de Excel não carregada. Verifique sua conexão e tente novamente.");
+                    return;
+                }
+
+                const workbook = XLSX.read(e.target.result, { type: "array", cellDates: true });
+                importRowsFromExcel(workbook);
+            } catch (err) {
+                console.error("Erro ao importar arquivo.", err);
+                alert("Erro ao ler o arquivo importado.");
+            } finally {
+                fileInput.value = "";
+            }
+        };
+
+        if (extension === "json") {
+            reader.readAsText(file);
+        } else {
+            reader.readAsArrayBuffer(file);
         }
     });
 }
