@@ -1745,7 +1745,7 @@ async function init() {
     // Setup carousel button triggers
     setupCarouselListeners();
 
-    // Setup utility utilities buttons (backup, theme)
+    // Setup utility buttons (theme, logout)
     setupUtilityListeners();
 
     // Setup comments listeners
@@ -1998,147 +1998,6 @@ function normalizeKey(value) {
         .trim();
 }
 
-function getRowValue(row, keys) {
-    const normalizedMap = {};
-    Object.keys(row).forEach(key => {
-        normalizedMap[normalizeKey(key)] = row[key];
-    });
-
-    for (const key of keys) {
-        const value = normalizedMap[normalizeKey(key)];
-        if (value !== undefined && value !== null && value !== "") {
-            return value;
-        }
-    }
-
-    return "";
-}
-
-function parseImportedNumber(value) {
-    if (typeof value === "number") return value;
-    return parseFloat(String(value || "0").replace(/\./g, "").replace(",", ".")) || 0;
-}
-
-function parseImportedDate(value) {
-    if (value instanceof Date) return value.toISOString().substring(0, 10);
-    const raw = String(value || "").trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.substring(0, 10);
-    const br = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-    if (br) {
-        const year = br[3].length === 2 ? `20${br[3]}` : br[3];
-        return `${year}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
-    }
-    return `${activeMonth}-01`;
-}
-
-function getOrCreateImportedCard(cardName) {
-    const name = String(cardName || "").trim();
-    if (!name || name === "Nenhum (Débito/PIX)") return name;
-
-    const existing = state.cards.find(card => normalizeKey(card.name) === normalizeKey(name));
-    if (existing) return existing.id;
-
-    const newCard = {
-        id: "card_import_" + Date.now() + "_" + state.cards.length,
-        name,
-        last4: "0000",
-        dueDay: 10,
-        color: "#4f46e5"
-    };
-    state.cards.push(newCard);
-    return newCard.id;
-}
-
-function importRowsFromExcel(workbook) {
-    let imported = 0;
-
-    workbook.SheetNames.forEach(sheetName => {
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
-        if (!rows.length) return;
-
-        const sheetKey = normalizeKey(sheetName);
-
-        if (sheetKey.includes("cart") || sheetKey.includes("card")) {
-            rows.forEach(row => {
-                const name = getRowValue(row, ["nome", "cartao", "card", "name"]);
-                if (!name) return;
-                const existing = state.cards.find(card => normalizeKey(card.name) === normalizeKey(name));
-                if (existing) return;
-                state.cards.push({
-                    id: "card_import_" + Date.now() + "_" + imported,
-                    name: String(name).trim(),
-                    last4: String(getRowValue(row, ["final", "last4", "ultimos 4"])).replace(/\D/g, "").slice(-4) || "0000",
-                    dueDay: parseInt(getRowValue(row, ["vencimento", "dia", "dueDay"]), 10) || 10,
-                    color: String(getRowValue(row, ["cor", "color"])) || "#4f46e5"
-                });
-                imported++;
-            });
-            return;
-        }
-
-        if (sheetKey.includes("assin") || sheetKey.includes("recorr") || sheetKey.includes("subscription")) {
-            rows.forEach(row => {
-                const name = getRowValue(row, ["nome", "assinatura", "descricao", "description"]);
-                if (!name) return;
-                state.subscriptions.push({
-                    id: "s_import_" + Date.now() + "_" + imported,
-                    name: String(name).trim(),
-                    value: parseImportedNumber(getRowValue(row, ["valor", "valor mensal", "value"])),
-                    day: parseInt(getRowValue(row, ["dia", "vencimento", "day"]), 10) || 1,
-                    card: getOrCreateImportedCard(getRowValue(row, ["cartao", "card"])),
-                    color: String(getRowValue(row, ["cor", "color"])) || "#3b82f6"
-                });
-                imported++;
-            });
-            return;
-        }
-
-        if (sheetKey.includes("planej") || sheetKey.includes("orc") || sheetKey.includes("budget")) {
-            rows.forEach(row => {
-                const description = getRowValue(row, ["descricao", "descrição", "item", "categoria"]);
-                if (!description) return;
-                const month = String(getRowValue(row, ["mes", "mês", "month"]) || activeMonth).substring(0, 7);
-                const type = normalizeKey(getRowValue(row, ["tipo", "type"]));
-                const listName = type.includes("receita") || type.includes("income") ? "income" : (type.includes("vari") ? "variable" : "fixed");
-                if (!state.months.includes(month)) state.months.push(month);
-                if (!state.planning[month]) state.planning[month] = { income: [], fixed: [], variable: [] };
-                state.planning[month][listName].push({
-                    id: "pl_import_" + Date.now() + "_" + imported,
-                    description: String(description).trim(),
-                    value: parseImportedNumber(getRowValue(row, ["valor", "value"]))
-                });
-                imported++;
-            });
-            return;
-        }
-
-        rows.forEach(row => {
-            const description = getRowValue(row, ["compra", "descricao", "descrição", "description"]);
-            const total = getRowValue(row, ["valor total", "total", "valor", "value"]);
-            if (!description || !total) return;
-            const purchaseDate = parseImportedDate(getRowValue(row, ["data", "date"]));
-            const installmentCount = parseInt(getRowValue(row, ["parcelas", "installments"]), 10) || 1;
-            const category = addCategoryIfMissing(getRowValue(row, ["categoria", "category"]) || "Extras");
-            ensureInstallmentMonths(purchaseDate, installmentCount);
-            state.purchases.push({
-                id: "p_import_" + Date.now() + "_" + imported,
-                description: String(description).trim(),
-                date: purchaseDate,
-                card: getOrCreateImportedCard(getRowValue(row, ["cartao", "card"])),
-                totalValue: parseImportedNumber(total),
-                installments: installmentCount,
-                category
-            });
-            imported++;
-        });
-    });
-
-    state = normalizeState(state);
-    saveState();
-    refreshAllUI();
-    alert(`${imported} linha(s) importada(s) da planilha.`);
-}
-
 function setupUtilityListeners() {
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
@@ -2159,74 +2018,8 @@ function setupUtilityListeners() {
         renderCharts();
     });
 
-    // Set stored theme
     const storedTheme = localStorage.getItem("financeflow_theme") || "dark";
     document.documentElement.setAttribute("data-theme", storedTheme);
-
-    // Backup export JSON
-    document.getElementById("export-btn").addEventListener("click", () => {
-        const json = JSON.stringify(state, null, 2);
-        const blob = new Blob([json], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `financeflow_backup_${activeMonth}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    });
-
-    // Backup import JSON
-    const fileInput = document.getElementById("file-import-input");
-    document.getElementById("import-btn").addEventListener("click", () => {
-        fileInput.click();
-    });
-
-    fileInput.addEventListener("change", function () {
-        const file = this.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        const extension = file.name.split(".").pop().toLowerCase();
-
-        reader.onload = function (e) {
-            try {
-                if (extension === "json") {
-                    const importedState = JSON.parse(e.target.result);
-                    if (importedState.months && importedState.planning) {
-                        state = normalizeState(importedState);
-                        saveState();
-                        refreshAllUI();
-                        alert("Dados importados com sucesso!");
-                    } else {
-                        alert("Arquivo de backup inválido.");
-                    }
-                    return;
-                }
-
-                if (!window.XLSX) {
-                    alert("Biblioteca de Excel não carregada. Verifique sua conexão e tente novamente.");
-                    return;
-                }
-
-                const workbook = XLSX.read(e.target.result, { type: "array", cellDates: true });
-                importRowsFromExcel(workbook);
-            } catch (err) {
-                console.error("Erro ao importar arquivo.", err);
-                alert("Erro ao ler o arquivo importado.");
-            } finally {
-                fileInput.value = "";
-            }
-        };
-
-        if (extension === "json") {
-            reader.readAsText(file);
-        } else {
-            reader.readAsArrayBuffer(file);
-        }
-    });
 }
 
 // Start application when window loads
